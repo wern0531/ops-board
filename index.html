@@ -283,6 +283,16 @@ function inbox(){
   return '<div class="box"><h2>等你<span class="c">'+rows.length+' 件・所有頻道</span></h2>'
    +rows.map(function(r,i){
     var c=ch(r.channel);
+    if(r.kind==="related") return '<div class="row">'
+      +'<span class="chip" style="background:'+esc(c?c.color:"#888")+'"></span>'
+      +'<b>'+esc(r.card)+'</b> <span class="pill">'+esc(r.build)+'</span>'
+      +'<span class="dim">'+esc(c?c.name:r.channel)+'</span>'
+      +'<div style="margin:6px 0">'+esc(r.title)+'</div>'
+      +'<div class="stat">這支 Shorts '+esc(r.due)+' 公開</div>'
+      +'<div class="acts"><a class="g" href="'+esc(r.url)+'" target="_blank" rel="noopener">'
+      +'到 Studio 設 →</a>'
+      +'<button class="p" data-rel="'+i+'">已設好</button>'
+      +'<span class="dim" id="res'+i+'"></span></div></div>';
     var head='<span class="chip" style="background:'+esc(c?c.color:"#888")+'"></span>'
       +'<b>'+esc(r.card)+'</b> '+(r.build?'<span class="pill">'+esc(r.build)+'</span>':"")
       +(c?'<span class="dim">'+esc(c.name)+'</span>':(r.ambiguous?'<span class="pill bad">同片號跨頻道，先選頻道</span>':'<span class="dim">非產線</span>'))
@@ -411,6 +421,14 @@ function wire(){
       var t=document.getElementById("note"+i).querySelector("textarea").value.trim();
       if(!t){ alert("「改」要寫一句意見"); return; }
       decide(i,"改",t); };});
+  Array.prototype.forEach.call(document.querySelectorAll("[data-rel]"),function(b){
+    b.onclick=function(){ var i=+b.getAttribute("data-rel"), r=snap.inbox[i];
+      var out=document.getElementById("res"+i);
+      b.disabled=true; out.textContent="送出中…";
+      sendAction({kind:"related-done",channel:r.channel,build:r.build,card:r.card,
+                  verdict:"",note:""})
+        .then(function(row){ waitAction(row.id,function(res){ out.textContent="→ "+res; }); })
+        .catch(function(e){ out.textContent="失敗："+(e.message||e); }); };});
   Array.prototype.forEach.call(document.querySelectorAll("[data-pool]"),function(b){
     b.onclick=function(){ var p=b.getAttribute("data-pool").split(":");
       b.disabled=true; b.textContent="送出中…";
