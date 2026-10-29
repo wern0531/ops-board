@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>暗史檔案・看板</title>
+<!--
+  老闆看板前端（ER-134）。單檔、零相依、零建置：推到公開 repo wern0531/ops-board，GitHub Pages 服務。
+  紅線：這個檔**不含任何金鑰、資料、本機路徑**。專案網址與 publishable key 由 CEO 給的設定連結
+  （#u=…&k=…）帶進來存 localStorage——片段不會送到任何伺服器，也不進 repo。
+  沒登入什麼都拿不到：所有資料都要帶 Supabase 的登入 JWT 才讀得到（RLS 只開給 authenticated）。
+-->
+<style>
+:root{
+  --bg:#eef3f7; --card:#fffdf9; --line:#dfe4ee; --ink:#232a3d; --dim:#6b7390;
+  --ok:#2e7d64; --warn:#9a6b1f; --bad:#b4453f; --accent:#2f6fb3;
+  --shadow:0 1px 3px rgba(40,50,90,.10);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#171b24; --card:#1f242f; --line:#2d3340; --ink:#e7ebf3; --dim:#98a1b6;
+  --ok:#5fbf9d; --warn:#d9ab57; --bad:#e2756c; --accent:#6aa7e0;
+  --shadow:0 1px 3px rgba(0,0,0,.35);
+}}
+html[data-theme=light]{--bg:#eef3f7;--card:#fffdf9;--line:#dfe4ee;--ink:#232a3d;--dim:#6b7390;
+  --ok:#2e7d64;--warn:#9a6b1f;--bad:#b4453f;--accent:#2f6fb3;--shadow:0 1px 3px rgba(40,50,90,.10)}
+html[data-theme=dark]{--bg:#171b24;--card:#1f242f;--line:#2d3340;--ink:#e7ebf3;--dim:#98a1b6;
+  --ok:#5fbf9d;--warn:#d9ab57;--bad:#e2756c;--accent:#6aa7e0;--shadow:0 1px 3px rgba(0,0,0,.35)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  -webkit-text-size-adjust:100%;overflow-x:hidden}
+.wrap{max-width:900px;margin:0 auto;padding:10px 10px 40px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0;box-shadow:var(--shadow)}
+h1{font-size:17px;margin:0}
+h2{font-size:15px;margin:0 0 8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+h2 .c{color:var(--dim);font-size:12px;font-weight:400}
+.bar{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);
+  padding:8px 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bar.red{background:var(--bad);color:#fff}
+.bar.red .dim,.bar.red select{color:#fff}
+.pill{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
+.dim{color:var(--dim);font-size:12px}
+.grid{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px}
+.kpi b{display:block;font-size:19px;font-weight:600}
+.kpi span{color:var(--dim);font-size:12px}
+.row{border-top:1px solid var(--line);padding:8px 0}
+.row:first-of-type{border-top:0}
+.chip{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:middle;margin-right:6px}
+.depts{display:flex;gap:3px;flex-wrap:wrap;margin:6px 0 2px}
+.dept{flex:1 1 34px;min-width:34px;text-align:center;font-size:10px;padding:3px 1px;border-radius:5px;
+  background:var(--bg);border:1px solid var(--line);color:var(--dim);overflow:hidden;white-space:nowrap}
+.dept.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--bg);
+  color:var(--ink);padding:7px 12px;min-height:38px}
+button.p{background:var(--accent);border-color:var(--accent);color:#fff}
+button.g{background:transparent}
+button:disabled{opacity:.5;cursor:default}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);
+  border-radius:8px;padding:8px;width:100%;min-height:38px}
+textarea{min-height:64px}
+.acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:12px;display:block;overflow-x:auto}
+th,td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left;white-space:nowrap}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.muted{opacity:.55}
+.tabs{display:flex;gap:6px;margin:8px 0}
+.tabs button{flex:1}
+.tabs button[aria-selected=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+.doc{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;z-index:20}
+.doc>div{background:var(--card);width:100%;max-height:88vh;overflow:auto;border-radius:14px 14px 0 0;padding:14px}
+.doc pre{white-space:pre-wrap;word-break:break-word;font:13px/1.65 ui-monospace,"Noto Sans TC",monospace;margin:0}
+.login{max-width:330px;margin:14vh auto}
+.err{color:var(--bad);font-size:13px;margin-top:8px;word-break:break-word}
+.stat{display:flex;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div id="app" class="wrap"></div>
+<script>
+"use strict";
+var LS="aicc-board";
+var cfg=null, tok=null, snap=null, at="", view={tab:"home", ch:"", err:""}, timer=null, docOpen=null;
+
+/* ---------- 設定（專案網址＋publishable key）：只從設定連結或 localStorage 來 ---------- */
+function readFragment(){
+  var h=location.hash.replace(/^#/,""); if(!h) return null;
+  var p=new URLSearchParams(h), u=p.get("u"), k=p.get("k");
+  if(!u||!k) return null;
+  var c={url:u.replace(/\/+$/,""),key:k};
+  localStorage.setItem(LS+"-cfg",JSON.stringify(c));
+  history.replaceState(null,"",location.pathname+location.search);   // 片段不留在網址列
+  return c;
+}
+function loadCfg(){
+  return readFragment()||JSON.parse(localStorage.getItem(LS+"-cfg")||"null");
+}
+function loadTok(){ return JSON.parse(localStorage.getItem(LS+"-tok")||"null"); }
+function saveTok(t){ tok=t; t?localStorage.setItem(LS+"-tok",JSON.stringify(t)):localStorage.removeItem(LS+"-tok"); }
+
+/* ---------- Supabase（手寫 fetch，不載任何第三方 SDK） ---------- */
+function api(path,opt){
+  opt=opt||{};
+  var h={apikey:cfg.key,"Content-Type":"application/json"};
+  if(tok&&tok.access_token) h.Authorization="Bearer "+tok.access_token;
+  Object.keys(opt.headers||{}).forEach(function(k){h[k]=opt.headers[k];});
+  return fetch(cfg.url+path,{method:opt.method||"GET",headers:h,
+    body:opt.body?JSON.stringify(opt.body):undefined}).then(function(r){
+    return r.text().then(function(t){
+      var j=null; try{ j=t?JSON.parse(t):null; }catch(e){ j=t; }
+      return {ok:r.ok,status:r.status,data:j};
+    });
+  });
+}
+function login(email,pw){
+  return api("/auth/v1/token?grant_type=password",{method:"POST",body:{email:email,password:pw}})
+    .then(function(r){
+      if(!r.ok) throw new Error((r.data&&(r.data.error_description||r.data.msg||r.data.error))||("登入失敗 "+r.status));
+      saveTok(r.data); return r.data;
+    });
+}
+function refresh(){
+  if(!tok||!tok.refresh_token) return Promise.reject(new Error("沒有登入"));
+  return api("/auth/v1/token?grant_type=refresh_token",{method:"POST",body:{refresh_token:tok.refresh_token}})
+    .then(function(r){ if(!r.ok) throw new Error("登入過期"); saveTok(r.data); return r.data; });
+}
+function authed(path,opt){                       // 401 先換一次 token，再失敗才真的登出
+  return api(path,opt).then(function(r){
+    if(r.status!==401) return r;
+    return refresh().then(function(){ return api(path,opt); });
+  });
+}
+function fetchSnap(){
+  return authed("/rest/v1/board_snapshot?key=eq.current&select=at,data").then(function(r){
+    if(!r.ok) throw new Error("讀不到資料（"+r.status+"）");
+    if(!r.data||!r.data.length) throw new Error("還沒有快照（本機還沒推第一輪）");
+    snap=r.data[0].data; at=r.data[0].at; view.err=""; render();
+  }).catch(function(e){ view.err=e.message||String(e); render(); });
+}
+function sendAction(a){
+  return authed("/rest/v1/board_actions",{method:"POST",body:[a],
+    headers:{Prefer:"return=representation"}}).then(function(r){
+    if(!r.ok) throw new Error((r.data&&(r.data.message||r.data.hint))||("送不出去 "+r.status));
+    return r.data[0];
+  });
+}
+function waitAction(id,cb){                      // 等本機那一輪把它落地（applied_at 回填）
+  var n=0;
+  var iv=setInterval(function(){
+    n++;
+    authed("/rest/v1/board_actions?id=eq."+id+"&select=applied_at,result").then(function(r){
+      var row=r.ok&&r.data&&r.data[0];
+      if(row&&row.applied_at){ clearInterval(iv); cb(row.result||"已落地"); fetchSnap(); }
+      else if(n>40){ clearInterval(iv); cb("本機還沒收到（下一輪會處理）"); }
+    });
+  },5000);
+}
+
+/* ---------- 小工具 ---------- */
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+function na(v,suf){ return (v===null||v===undefined||v==="")?'<span class="dim">量不到</span>':esc(v)+(suf||""); }
+function ago(s){
+  var t=Date.parse(String(s||"").replace(" ","T")); if(!t) return "";
+  var m=Math.round((Date.now()-t)/60000);
+  return m<1?"剛剛":(m<60?m+" 分前":Math.floor(m/60)+" 小時前");
+}
+function hhmm(s){ var m=String(s||"").match(/(\d{2}):(\d{2})/); return m?m[1]+":"+m[2]:"—"; }
+function ch(slug){ return (snap.channels||[]).filter(function(c){return c.slug===slug;})[0]||null; }
+function pushedAgo(){
+  var t=Date.parse(at||""); if(!t) return null;
+  return Math.round((Date.now()-t)/1000);
+}
+
+/* ---------- 畫面 ---------- */
+function renderLogin(msg){
+  document.getElementById("app").innerHTML=
+   '<div class="login box"><h1>暗史檔案・看板</h1>'
+   +'<p class="dim">要老闆的帳號密碼。沒登入看不到任何資料。</p>'
+   +'<p><input id="em" type="email" inputmode="email" autocomplete="username" placeholder="電子郵件"></p>'
+   +'<p><input id="pw" type="password" autocomplete="current-password" placeholder="密碼"></p>'
+   +'<p><button class="p" id="go" style="width:100%">登入</button></p>'
+   +(msg?'<div class="err">'+esc(msg)+'</div>':'')+'</div>';
+  var go=function(){
+    var b=document.getElementById("go"); b.disabled=true; b.textContent="登入中…";
+    login(document.getElementById("em").value.trim(),document.getElementById("pw").value)
+      .then(function(){ start(); })
+      .catch(function(e){ renderLogin(e.message||"登入失敗"); });
+  };
+  document.getElementById("go").onclick=go;
+  document.getElementById("pw").onkeydown=function(e){ if(e.key==="Enter") go(); };
+}
+function renderSetup(){
+  document.getElementById("app").innerHTML=
+   '<div class="login box"><h1>還沒設定</h1><p class="dim">'
+   +'請用 CEO 給的設定連結開這一頁一次（網址後面帶 <code>#u=…&amp;k=…</code>），之後就只要帳號密碼。'
+   +'</p></div>';
+}
+function bar(){
+  var st=snap.staleness||{}, age=pushedAgo(), limit=(st.limit_sec||720);
+  var late=age!==null&&age>Math.max(limit,900);
+  var why=late?("資料沒上來：最後一次 "+hhmm(at)+"（"+Math.round(age/60)+" 分前）")
+              :(st.stale?(st.why||"資料過期"):"");
+  var h=(snap.health||{}), lights=h.lights||{};
+  var light=h.halted?'<span class="pill bad">停工中</span>'
+    :(snap.status==="ONLINE"?'<span class="pill ok">全綠</span>'
+    :(snap.status==="STOPPED"?'<span class="pill bad">停了</span>':'<span class="pill warn">注意</span>'));
+  var k=snap.kpi||{};
+  var live=(snap.channels||[]).reduce(function(a,c){return a+(c.active||0);},0);
+  var opts=(snap.channels||[]).map(function(c){
+    return '<option value="'+esc(c.slug)+'"'+(view.ch===c.slug?" selected":"")+'>'+esc(c.name)+'</option>';}).join("");
+  return '<div class="bar'+((why)?" red":"")+'">'
+    +light+'<span class="pill">快照 '+hhmm(at)+'</span>'
+    +'<span class="pill">'+(snap.channels||[]).length+' 個頻道</span>'
+    +'<span class="pill">在線 '+live+' 支</span>'
+    +'<span class="pill">等你 '+((snap.inbox||[]).length)+' 件</span>'
+    +'<span class="pill">本週 '+(k.done_week==null?"？":k.done_week)+'／'+(k.weekly_target||"？")+' 片</span>'
+    +'<select id="chsel" style="width:auto;min-width:120px"><option value="">總覽</option>'+opts+'</select>'
+    +'<button class="g" id="th" title="亮暗">◑</button>'
+    +'<button class="g" id="out">登出</button>'
+    +(why?'<div style="flex:1 1 100%;font-size:13px">'+esc(why)
+          +(lights.sentinel&&!lights.sentinel.ok?'（哨兵心跳 '+esc(lights.sentinel.at)+'）':'')+'</div>':'')
+    +'</div>';
+}
+function chRow(c){
+  var depts=(c.depts||[]).map(function(d){
+    var n=(c.by_dept||{})[d]||0;
+    return '<div class="dept'+(n?" on":"")+'" title="'+esc(d)+(n?"：在線 "+n+" 支":"")+'">'+esc(d.slice(0,2))+(n?"·"+n:"")+'</div>';
+  }).join("");
+  var tags=[];
+  if(c.waiting) tags.push('<span class="pill warn">等你 '+c.waiting+'</span>');
+  if(c.stuck) tags.push('<span class="pill bad">卡住 '+c.stuck+'</span>');
+  if(c.why) tags.push('<span class="pill bad">'+esc(c.why)+'</span>');
+  if(!tags.length) tags.push('<span class="pill ok">正常</span>');
+  return '<div class="row"><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
+    +'<span class="chip" style="background:'+esc(c.color)+'"></span>'
+    +'<b>'+esc(c.name)+'</b>'
+    +'<span class="dim">本週 '+(c.done_week==null?"？":c.done_week)+'／'+(c.weekly_target||"？")+'・在線 '+(c.active||0)+' 支</span>'
+    +tags.join("")
+    +'<button class="g" style="margin-left:auto" data-ch="'+esc(c.slug)+'">看這台 →</button></div>'
+    +'<div class="depts">'+depts+'</div></div>';
+}
+function home(){
+  var chs=(snap.channels||[]).slice();
+  var busy=chs.filter(function(c){return c.waiting||c.stuck||c.why;});
+  var calm=chs.filter(function(c){return !(c.waiting||c.stuck||c.why);});
+  var k=snap.kpi||{}, r=snap.resources||{};
+  var h='<div class="box"><h2>頻道<span class="c">有事的排上面</span></h2>'
+    +(busy.map(chRow).join("")||"")
+    +(calm.length?(busy.length?'<div class="row dim">另外 '+calm.length+' 個頻道都正常'
+        +'<button class="g" id="showcalm" style="margin-left:8px">展開</button></div>'
+        +'<div id="calm" style="display:none">'+calm.map(chRow).join("")+'</div>'
+        :calm.map(chRow).join("")):"")
+    +'</div>';
+  h+=inbox();
+  h+='<div class="box"><h2>共用資源<span class="c">先做先用，只看用量與誰在排隊</span></h2><div class="grid">'
+    +tile("顯卡",(r.gpu&&r.gpu.text)||"量不到",
+      [(r.gpu&&!r.gpu.window_open?"時窗關："+(r.gpu.window_why||""):""),
+       "排隊最多："+((r.gpu&&r.gpu.top_channel)?chName(r.gpu.top_channel):"—"),
+       (r.gpu&&r.gpu.next_open?"下次開 "+esc(r.gpu.next_open):"")])
+    +tile("外部模型今日",((r.external&&r.external.calls)!=null?r.external.calls+" 次／US$"+(r.external.cash||0):"量不到"),
+      [(r.external&&r.external.why)||""])
+    +tile("訂閱週額",((r.quota&&r.quota.pct)!=null?r.quota.pct+"%":"量不到"),
+      ["級別 "+((r.quota&&r.quota.band)||"—"),(r.quota&&r.quota.why)||""])
+    +tile("外部現金本週",((r.cash&&r.cash.week)!=null?"US$"+r.cash.week:"量不到"),
+      ["上限 US$"+((r.cash&&r.cash.cap)||"?")+"／每片 US$"+((r.cash&&r.cash.per_video_cap)||"?"),
+       "用最多："+((r.cash&&r.cash.top_channel)?chName(r.cash.top_channel):"—")])
+    +'</div>'+(k.why?'<div class="dim" style="margin-top:6px">'+esc(k.why)+'</div>':'')+'</div>';
+  h+='<div class="box"><h2>最近事件<span class="c">'+((snap.events||[]).length)+' 件</span></h2>'
+    +(snap.events||[]).slice(0,10).map(function(e){
+      return '<div class="row dim">'+hhmm(e.at)+'　'+esc(e.build||"")+' '+esc(e.station||"")+'：'+esc(e.text)+'</div>';
+    }).join("")+'</div>';
+  return h;
+}
+function chName(s){ var c=ch(s); return esc(c?c.name:s); }
+function tile(t,v,notes){
+  return '<div class="kpi"><span>'+esc(t)+'</span><b>'+v+'</b>'
+    +(notes||[]).filter(Boolean).map(function(x){return '<div class="dim">'+x+'</div>';}).join("")+'</div>';
+}
+function inbox(){
+  var rows=(snap.inbox||[]);
+  if(!rows.length) return '<div class="box"><h2>等你</h2><div class="dim">沒有待決的卡。</div></div>';
+  return '<div class="box"><h2>等你<span class="c">'+rows.length+' 件・所有頻道</span></h2>'
+   +rows.map(function(r,i){
+    var c=ch(r.channel);
+    var head='<span class="chip" style="background:'+esc(c?c.color:"#888")+'"></span>'
+      +'<b>'+esc(r.card)+'</b> '+(r.build?'<span class="pill">'+esc(r.build)+'</span>':"")
+      +(c?'<span class="dim">'+esc(c.name)+'</span>':(r.ambiguous?'<span class="pill bad">同片號跨頻道，先選頻道</span>':'<span class="dim">非產線</span>'))
+      +(r.gate_open?'<span class="pill warn">關卡開著</span>':'<span class="pill muted">關卡已過・卡未結</span>');
+    var docs=(r.docs||[]).map(function(d,j){
+      return '<button class="g" data-doc="'+i+":"+j+'">📄 '+esc(d.label)+'</button>';}).join("");
+    return '<div class="row'+(r.gate_open?"":" muted")+'">'+head
+      +'<div style="margin:6px 0">'+esc(r.title)+'</div>'
+      +'<div class="stat">提出 '+esc(r.date)+'・期限 '+esc(r.due)+'・逾期預設：'+esc(r.default)+'</div>'
+      +(docs?'<div class="acts">'+docs+'</div>':"")
+      +'<div class="acts">'
+      +(r.ambiguous?'<select data-amb="'+i+'" style="width:auto">'+(snap.channels||[]).map(function(x){
+          return '<option value="'+esc(x.slug)+'">'+esc(x.name)+'</option>';}).join("")+'</select>':"")
+      +'<button class="p" data-act="'+i+':准">准</button>'
+      +'<button data-act="'+i+':不動">不動</button>'
+      +'<button data-act="'+i+':改">改…</button>'
+      +'<span class="dim" id="res'+i+'"></span></div>'
+      +'<div id="note'+i+'" style="display:none;margin-top:6px">'
+      +'<textarea placeholder="要改什麼？一句話（會跟著裁示寫回決策卡）"></textarea>'
+      +'<div class="acts"><button class="p" data-send="'+i+'">送出「改」</button></div></div>'
+      +'</div>';
+   }).join("")+'</div>';
+}
+function channelPage(slug){
+  var c=ch(slug); if(!c) return '<div class="box">沒有這個頻道。</div>';
+  var k=c.kpi||{};
+  var h='<div class="box"><h2><span class="chip" style="background:'+esc(c.color)+'"></span>'
+    +esc(c.name)+'<span class="c">'+esc(c.slug)+'</span></h2><div class="grid">'
+    +tile("本週完成",na(k.done_week)+'／'+(c.weekly_target||"？"),["上傳 "+na(k.upload_week)])
+    +tile("每片現金",(k.per_video_cash_usd!=null?"US$"+k.per_video_cash_usd:"量不到"),[])
+    +tile("成功率",(k.success_rate!=null?Math.round(k.success_rate*100)+"%":"量不到"),[])
+    +tile("每片訂閱等值",(k.per_video_quota_usd_equiv!=null?"US$"+k.per_video_quota_usd_equiv:"量不到"),[])
+    +'</div>'+(k.why?'<div class="dim" style="margin-top:6px">'+esc(k.why)+'</div>':'')+'</div>';
+  h+='<div class="box"><h2>在線片<span class="c">'+(c.orders||[]).length+' 支</span></h2>'
+    +((c.orders||[]).map(function(o){
+      return '<div class="row"><b>'+esc(o.id)+'</b> <span class="dim">'+esc(o.status_zh||o.status)+'</span>'
+        +'<div>'+esc(o.title)+'</div>'
+        +'<div class="stat">'+esc(o.station_name||o.station||"—")+'・'+esc(o.dept||"")
+        +'・自 '+esc(o.since)+'（'+ago(o.since)+'）'
+        +(o.decision?'・卡 '+esc(o.decision):"")+(o.queue_reason?'・'+esc(o.queue_reason):"")
+        +'・現金 US$'+((o.cost&&o.cost.cash_usd)||0)+'・顯卡 '+((o.cost&&o.cost.gpu_min)||0)+' 分</div></div>';
+    }).join("")||'<div class="dim">沒有在線片。</div>')+'</div>';
+  h+=(c.builds||[]).map(function(b){
+    return '<div class="box"><h2>'+esc(b.build)+' 逐站<span class="c">'+esc(b.cost_text||"")+'</span></h2>'
+      +'<table><tr><th>站</th><th>部門</th><th>狀況</th><th>誰</th><th>說明</th></tr>'
+      +(b.stations||[]).map(function(s){
+        var cls=s.status==="failed"||s.status==="blocked"?"bad":(s.status==="running"?"ok":
+          (s.status==="awaiting_boss"||s.status==="awaiting_ceo"?"warn":"dim"));
+        return '<tr><td>'+esc(s.short)+'</td><td>'+esc(s.dept)+'</td><td class="'+cls+'">'+esc(s.status_zh)
+          +(s.elapsed_min?'（'+s.elapsed_min+' 分）':"")+'</td><td>'+esc(s.worker)+'</td>'
+          +'<td>'+esc(s.fail_note||s.wait_reason||"")+'</td></tr>';
+      }).join("")+'</table>'+(b.next_eta?'<div class="dim">下一步：'+esc(b.next_eta)+'</div>':"")+'</div>';
+  }).join("");
+  if((c.youtube||[]).length){
+    h+='<div class="box"><h2>YouTube 成果<span class="c">阿題預測 vs 實際</span></h2>'
+      +'<table><tr><th>片</th><th>格</th><th>CTR 預／實</th><th>留存 預／實</th><th>觀看 預／實</th></tr>'
+      +c.youtube.map(function(y){
+        var f=function(p,a,hit,suf){ return esc(p||"—")+" ／ "+(a==null?"—":esc(a)+(suf||""))
+          +(hit&&hit!=="—"?'<span class="'+(hit==="命中"?"ok":"bad")+'">（'+esc(hit)+'）</span>':""); };
+        return '<tr><td>'+esc(y.tc)+'</td><td>'+esc(y.snap||"—")+'</td>'
+          +'<td>'+f(y.ctr_pred,y.ctr_act,y.ctr_hit,"%")+'</td>'
+          +'<td>'+f(y.ret_pred,y.ret_act,y.ret_hit,"%")+'</td>'
+          +'<td>'+f(y.views_pred,y.views_act,y.views_hit)+'</td></tr>';
+      }).join("")+'</table></div>';
+  }
+  if((c.pool||[]).length){
+    h+='<div class="box"><h2>任務卡池<span class="c">擋下＝這一張不許開工</span></h2>'
+      +c.pool.map(function(p){
+        return '<div class="row"><b>'+esc(p.tc)+'</b> '+esc(p.title)
+          +(p.blocked?'<span class="pill bad">已擋下 '+esc(p.reason||"")+'</span>':"")
+          +'<div class="acts"><button data-pool="'+esc(slug)+":"+esc(p.tc)+":"+(p.blocked?"un":"do")
+          +'">'+(p.blocked?"解除擋下":"擋下這張")+'</button></div></div>';
+      }).join("")+'</div>';
+  }
+  if((c.alerts||[]).length){
+    h+='<div class="box"><h2>異常<span class="c">'+c.alerts.length+' 件</span></h2>'
+      +c.alerts.map(function(a){ return '<div class="row '+(a.level==="P1"?"bad":"warn")+'">'
+        +esc(a.level)+'　'+esc(a.build||"")+'　'+esc(a.text)+'</div>'; }).join("")+'</div>';
+  }
+  return h;
+}
+function docView(){
+  if(!docOpen) return "";
+  var d=docOpen;
+  return '<div class="doc" id="docbg"><div><h2>'+esc(d.title)+'<button class="g" id="docx" style="margin-left:auto">關閉</button></h2>'
+    +(d.truncated?'<div class="dim">（太長，只推了前面一段）</div>':"")
+    +'<pre>'+esc(d.text)+'</pre></div></div>';
+}
+function render(){
+  if(!snap){ return; }
+  var app=document.getElementById("app");
+  app.innerHTML=bar()+(view.err?'<div class="box err">'+esc(view.err)+'</div>':"")
+    +(view.ch?channelPage(view.ch):home())+docView();
+  wire();
+}
+function wire(){
+  var sel=document.getElementById("chsel");
+  if(sel) sel.onchange=function(){ view.ch=sel.value; render(); window.scrollTo(0,0); };
+  var th=document.getElementById("th");
+  if(th) th.onclick=function(){
+    var cur=document.documentElement.getAttribute("data-theme");
+    var nx=cur==="dark"?"light":(cur==="light"?"auto":"dark");
+    document.documentElement.setAttribute("data-theme",nx); localStorage.setItem(LS+"-theme",nx);
+  };
+  var out=document.getElementById("out");
+  if(out) out.onclick=function(){ saveTok(null); snap=null; clearInterval(timer); renderLogin("已登出"); };
+  var sc=document.getElementById("showcalm");
+  if(sc) sc.onclick=function(){ var d=document.getElementById("calm");
+    d.style.display=d.style.display==="none"?"block":"none"; };
+  Array.prototype.forEach.call(document.querySelectorAll("[data-ch]"),function(b){
+    b.onclick=function(){ view.ch=b.getAttribute("data-ch"); render(); window.scrollTo(0,0); };});
+  Array.prototype.forEach.call(document.querySelectorAll("[data-doc]"),function(b){
+    b.onclick=function(){ var p=b.getAttribute("data-doc").split(":");
+      docOpen=(snap.inbox[+p[0]].docs||[])[+p[1]]; render(); };});
+  var dx=document.getElementById("docx"), bg=document.getElementById("docbg");
+  if(dx) dx.onclick=function(){ docOpen=null; render(); };
+  if(bg) bg.onclick=function(e){ if(e.target===bg){ docOpen=null; render(); } };
+  Array.prototype.forEach.call(document.querySelectorAll("[data-act]"),function(b){
+    b.onclick=function(){
+      var p=b.getAttribute("data-act").split(":"), i=+p[0], v=p[1];
+      if(v==="改"){ document.getElementById("note"+i).style.display="block"; return; }
+      decide(i,v,"");
+    };});
+  Array.prototype.forEach.call(document.querySelectorAll("[data-send]"),function(b){
+    b.onclick=function(){ var i=+b.getAttribute("data-send");
+      var t=document.getElementById("note"+i).querySelector("textarea").value.trim();
+      if(!t){ alert("「改」要寫一句意見"); return; }
+      decide(i,"改",t); };});
+  Array.prototype.forEach.call(document.querySelectorAll("[data-pool]"),function(b){
+    b.onclick=function(){ var p=b.getAttribute("data-pool").split(":");
+      b.disabled=true; b.textContent="送出中…";
+      sendAction({kind:p[2]==="un"?"pool-unblock":"pool-block",channel:p[0],build:p[1],
+                  card:"",verdict:"",note:""})
+        .then(function(row){ waitAction(row.id,function(r){ b.textContent=r; }); })
+        .catch(function(e){ b.textContent="失敗："+(e.message||e); }); };});
+}
+function decide(i,verdict,note){
+  var r=snap.inbox[i], out=document.getElementById("res"+i);
+  var slug=r.channel;
+  if(r.ambiguous){
+    var s=document.querySelector('[data-amb="'+i+'"]');
+    slug=s?s.value:"";
+    if(!slug){ out.textContent="請先選頻道"; return; }
+  }
+  if(verdict==="准"&&!confirm("要裁「准」嗎？"+(r.gate_open?"（會立刻放行 "+(r.build||"")+" 的關卡）":""))) return;
+  out.textContent="送出中…";
+  Array.prototype.forEach.call(document.querySelectorAll('[data-act^="'+i+':"]'),function(b){b.disabled=true;});
+  sendAction({kind:"decide",channel:slug,build:r.build||"",card:r.card,verdict:verdict,note:note})
+    .then(function(row){ out.textContent="已送出，等本機落地…";
+      waitAction(row.id,function(res){ out.textContent="→ "+res; }); })
+    .catch(function(e){ out.textContent="失敗："+(e.message||e); });
+}
+
+/* ---------- 起步 ---------- */
+function start(){
+  fetchSnap();
+  clearInterval(timer);
+  timer=setInterval(function(){ if(!document.hidden) fetchSnap(); },60000);
+  document.addEventListener("visibilitychange",function(){ if(!document.hidden) fetchSnap(); });
+}
+(function(){
+  var t=localStorage.getItem(LS+"-theme");
+  if(t) document.documentElement.setAttribute("data-theme",t);
+  cfg=loadCfg();
+  if(!cfg){ renderSetup(); return; }
+  tok=loadTok();
+  if(!tok){ renderLogin(""); return; }
+  refresh().then(start).catch(function(){ renderLogin("請重新登入"); });
+})();
+</script>
+</body>
+</html>
