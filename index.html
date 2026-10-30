@@ -19,99 +19,144 @@
   兩列快照：current（20 秒一輪，產線狀態）＋analytics（一天一次，趨勢與圖表）。
 -->
 <style>
+/* ER-140 樣式 A（冷調精簡）：中性灰階＋**一個**強調色，1px 細邊框，卡 12px／控制項 8px 圓角，
+   數字一律等寬。舊的米色／多強調色色票（--accent2、--shadow）已退休。 */
 :root{
-  --bg:#eef3f7; --card:#fffdf9; --line:#dfe4ee; --ink:#232a3d; --dim:#6b7390;
-  --ok:#2e7d64; --warn:#9a6b1f; --bad:#b4453f; --accent:#2f6fb3; --accent2:#b4652a;
-  --shadow:0 1px 3px rgba(40,50,90,.10);
+  --bg:#f6f7f8; --card:#ffffff; --line:#e3e5e8; --soft:#f0f1f3;
+  --ink:#14161a; --dim:#5c6269;
+  --accent:#3755d8; --accent-ink:#ffffff; --accent-soft:#edf0fd;
+  --ok:#0f6b4f; --warn:#7d5300; --bad:#a82920;
+  --series2:#6b7280;
 }
 @media (prefers-color-scheme:dark){:root{
-  --bg:#171b24; --card:#1f242f; --line:#2d3340; --ink:#e7ebf3; --dim:#98a1b6;
-  --ok:#5fbf9d; --warn:#d9ab57; --bad:#e2756c; --accent:#6aa7e0; --accent2:#d98f55;
-  --shadow:0 1px 3px rgba(0,0,0,.35);
+  --bg:#0d0e10; --card:#15171a; --line:#272a2f; --soft:#1d2024;
+  --ink:#e9eaec; --dim:#9aa0a8;
+  --accent:#8098f9; --accent-ink:#0d0e10; --accent-soft:#1b2033;
+  --ok:#4cc38a; --warn:#d6a23d; --bad:#ef6a60;
+  --series2:#8b919a;
 }}
-html[data-theme=light]{--bg:#eef3f7;--card:#fffdf9;--line:#dfe4ee;--ink:#232a3d;--dim:#6b7390;
-  --ok:#2e7d64;--warn:#9a6b1f;--bad:#b4453f;--accent:#2f6fb3;--accent2:#b4652a;
-  --shadow:0 1px 3px rgba(40,50,90,.10)}
-html[data-theme=dark]{--bg:#171b24;--card:#1f242f;--line:#2d3340;--ink:#e7ebf3;--dim:#98a1b6;
-  --ok:#5fbf9d;--warn:#d9ab57;--bad:#e2756c;--accent:#6aa7e0;--accent2:#d98f55;
-  --shadow:0 1px 3px rgba(0,0,0,.35)}
+html[data-theme=light]{--bg:#f6f7f8;--card:#ffffff;--line:#e3e5e8;--soft:#f0f1f3;
+  --ink:#14161a;--dim:#5c6269;--accent:#3755d8;--accent-ink:#ffffff;--accent-soft:#edf0fd;
+  --ok:#0f6b4f;--warn:#7d5300;--bad:#a82920;--series2:#6b7280}
+html[data-theme=dark]{--bg:#0d0e10;--card:#15171a;--line:#272a2f;--soft:#1d2024;
+  --ink:#e9eaec;--dim:#9aa0a8;--accent:#8098f9;--accent-ink:#0d0e10;--accent-soft:#1b2033;
+  --ok:#4cc38a;--warn:#d6a23d;--bad:#ef6a60;--series2:#8b919a}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
   -webkit-text-size-adjust:100%;overflow-x:hidden}
-.page{padding:10px 14px 24px}
-.box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:0 0 10px;box-shadow:var(--shadow)}
-h1{font-size:17px;margin:0}
-h2{font-size:15px;margin:0 0 8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-h2 .c{color:var(--dim);font-size:12px;font-weight:400}
+body.lock{overflow:hidden}
+b,strong,.num,.kpi b,td,th,.bv,.pill{font-variant-numeric:tabular-nums}
+.page{padding:12px 16px 28px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:0 0 12px}
+h1{font-size:17px;margin:0;letter-spacing:-.01em}
+h2{font-size:14px;margin:0 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  font-weight:600;letter-spacing:-.01em}
+h2 .c{color:var(--dim);font-size:12px;font-weight:400;letter-spacing:0}
 .bar{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);
-  padding:8px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.bar.red{background:var(--bad);color:#fff}
-.bar.red .dim,.bar.red select,.bar.red button{color:#fff}
-.pill{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
-.pill.big{font-size:13px;font-weight:600;background:var(--warn);border-color:var(--warn);color:#fff;cursor:pointer}
+  padding:9px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bar.red{border-bottom-color:var(--bad);box-shadow:inset 0 2px 0 var(--bad)}
+.pill{font-size:12px;padding:2px 9px;border-radius:999px;border:1px solid var(--line);
+  white-space:nowrap;color:var(--dim);background:var(--card)}
+.pill.ok{color:var(--ok)}.pill.warn{color:var(--warn)}.pill.bad{color:var(--bad);border-color:var(--bad)}
+.pill.big{font-size:13px;font-weight:600;background:var(--accent);border-color:var(--accent);
+  color:var(--accent-ink);cursor:pointer}
 .dim{color:var(--dim);font-size:12px}
-.kpis{display:grid;gap:10px;grid-template-columns:repeat(6,minmax(0,1fr))}
-.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;box-shadow:var(--shadow)}
-.kpi span{color:var(--dim);font-size:12px;display:block}
-.kpi b{display:block;font-size:22px;font-weight:600;line-height:1.25}
+.kpis{display:grid;gap:12px;grid-template-columns:repeat(6,minmax(0,1fr))}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.kpi span.t{color:var(--dim);font-size:12px;display:block}
+.kpi b{display:block;font-size:24px;font-weight:600;line-height:1.2;letter-spacing:-.02em;margin:2px 0}
 .kpi.red b{color:var(--bad)}
-.mid{display:grid;gap:10px;grid-template-columns:minmax(0,2fr) minmax(0,1fr);margin:10px 0}
-.row{border-top:1px solid var(--line);padding:8px 0}
+.kpi .d{font-size:12px;display:flex;align-items:center;gap:4px}
+.kpi .d.up{color:var(--ok)}.kpi .d.down{color:var(--bad)}.kpi .d.flat{color:var(--dim)}
+.mid{display:grid;gap:12px;grid-template-columns:minmax(0,2fr) minmax(0,1fr);margin:12px 0}
+.row{border-top:1px solid var(--line);padding:10px 0}
 .row:first-of-type{border-top:0}
-.chip{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:middle;margin-right:6px}
-.depts{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 2px}
-.dept{flex:1 1 40px;min-width:40px;text-align:center;font-size:10px;padding:4px 1px;border-radius:5px;
-  background:var(--bg);border:1px solid var(--line);color:var(--dim);overflow:hidden;white-space:nowrap}
-.dept.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
-.dept.wait{background:var(--warn);border-color:var(--warn);color:#fff;font-weight:600}
-.dept.stuck{background:var(--bad);border-color:var(--bad);color:#fff;font-weight:600}
-button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--bg);
-  color:var(--ink);padding:6px 11px;min-height:34px}
-button.p{background:var(--accent);border-color:var(--accent);color:#fff}
-button.g{background:transparent}
-button:disabled{opacity:.5;cursor:default}
-input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);
-  border-radius:8px;padding:8px;width:100%;min-height:36px}
-textarea{min-height:64px}
-.acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chip{display:inline-block;width:8px;height:8px;border-radius:2px;vertical-align:middle;margin-right:6px}
+/* 卡片固定三層：標籤一行→標題一行（人話、可換行）→說明一行 */
+.k-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--dim)}
+.k-title{font-size:15px;font-weight:600;margin:4px 0 2px;line-height:1.45;overflow-wrap:anywhere}
+.k-note{font-size:13px;color:var(--dim);overflow-wrap:anywhere}
+.depts{display:flex;gap:4px;flex-wrap:wrap;margin:8px 0 2px}
+.dept{flex:1 1 40px;min-width:40px;text-align:center;font-size:10px;padding:4px 1px;border-radius:6px;
+  background:var(--soft);border:1px solid var(--line);color:var(--dim);overflow:hidden;white-space:nowrap}
+.dept.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+.dept.wait{border-color:var(--warn);color:var(--warn);font-weight:600}
+.dept.stuck{border-color:var(--bad);color:var(--bad);font-weight:600}
+button,.btn{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--card);
+  color:var(--ink);padding:7px 12px;min-height:34px;display:inline-flex;align-items:center;gap:6px;
+  text-decoration:none;white-space:nowrap}
+button:hover,.btn:hover{background:var(--soft)}
+button.p,.btn.p{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.p:hover,.btn.p:hover{filter:brightness(1.08)}
+button.g{background:transparent;border-color:transparent;color:var(--dim)}
+button.g:hover{background:var(--soft);color:var(--ink)}
+button.bad{border-color:var(--bad);color:var(--bad)}
+button:disabled{opacity:.45;cursor:default}
+.ico{width:14px;height:14px;flex:0 0 14px;display:block;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+/* 文字連結：不是瀏覽器預設藍底線；外連帶 ↗ */
+a.lnk{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:1px}
+a.lnk:hover{border-bottom-color:var(--accent)}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);
+  border-radius:8px;padding:8px 10px;width:100%;min-height:36px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+textarea{min-height:72px;resize:vertical}
+.hint{color:var(--bad);font-size:12px;margin-top:4px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
 .scroll{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:12px}
-th,td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left;white-space:nowrap;vertical-align:middle}
+th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;white-space:nowrap;vertical-align:middle}
+th{color:var(--dim);font-weight:500}
 tr.click{cursor:pointer}
-tr.click:hover td{background:var(--bg)}
+tr.click:hover td{background:var(--soft)}
 .ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
-.muted{opacity:.55}
-.tabs{display:flex;gap:6px;padding:0 14px}
-.tabs button[aria-selected=true]{background:var(--accent);border-color:var(--accent);color:#fff}
-.bc{position:relative;height:9px;background:var(--bg);border:1px solid var(--line);border-radius:5px;min-width:70px}
-.bc i{display:block;height:100%;background:var(--accent);border-radius:5px}
-.bc i.o{background:var(--accent2)}
-.bc u{position:absolute;top:-4px;width:2px;height:15px;background:var(--ink);opacity:.75}
+.muted{opacity:.6}
+.tabs{display:flex;gap:6px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--card)}
+.tabs button{border:0;border-radius:0;background:transparent;color:var(--dim);min-height:38px;
+  border-bottom:2px solid transparent;padding:6px 4px;margin-right:10px}
+.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.bc{position:relative;height:6px;background:var(--soft);border:1px solid var(--line);border-radius:999px;min-width:70px}
+.bc i{display:block;height:100%;background:var(--accent);border-radius:999px}
+.bc u{position:absolute;top:-4px;width:2px;height:14px;background:var(--ink);opacity:.7}
 .bv{font-size:11px;color:var(--dim)}
-.mix{display:flex;height:16px;border-radius:5px;overflow:hidden;border:1px solid var(--line)}
+.mix{display:flex;height:10px;border-radius:999px;overflow:hidden;border:1px solid var(--line)}
 .mix i{display:block;height:100%}
 svg{display:block;width:100%;height:auto}
-.spark{width:112px;height:26px}
-.doc{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:20;padding:12px}
-.doc>div{background:var(--card);width:100%;max-width:640px;max-height:86vh;overflow:auto;border-radius:14px;padding:14px}
+.spark{width:112px;height:24px}
+.doc{position:fixed;inset:0;background:rgba(10,11,13,.6);display:flex;align-items:center;justify-content:center;
+  z-index:20;padding:12px}
+.doc>div{background:var(--card);width:100%;max-width:640px;max-height:86vh;overflow:auto;
+  border:1px solid var(--line);border-radius:12px;padding:16px}
 pre{white-space:pre-wrap;word-break:break-word;font:13px/1.65 ui-monospace,"Noto Sans TC",monospace;margin:0}
 .login{max-width:330px;margin:14vh auto}
 .err{color:var(--bad);font-size:13px;margin-top:8px;word-break:break-word}
-.stat{display:flex;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--dim)}
+.stat{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--dim)}
+/* 提示（取代 alert／confirm）：桌機右下、手機底部 */
+.toasts{position:fixed;right:16px;bottom:16px;z-index:30;display:flex;flex-direction:column;gap:8px;
+  max-width:330px}
+.toast{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+  font-size:13px;display:flex;gap:8px;align-items:center}
+.toast.bad{border-color:var(--bad)}
+.toast .x{margin-left:auto}
+.spin{width:13px;height:13px;flex:0 0 13px;border:2px solid var(--line);border-top-color:var(--accent);
+  border-radius:50%;animation:sp .7s linear infinite;display:inline-block}
+@keyframes sp{to{transform:rotate(360deg)}}
+.busy{opacity:.5}
 .mob{display:none}
 .nav{display:none;position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--card);
   border-top:1px solid var(--line);padding:4px}
-.nav button{flex:1;border:0;background:transparent;font-size:13px;min-height:44px}
-.nav button[aria-selected=true]{color:var(--accent);font-weight:700}
+.nav button{flex:1;border:0;background:transparent;font-size:13px;min-height:44px;justify-content:center}
+.nav button[aria-selected=true]{color:var(--accent);font-weight:600}
 @media (max-width:820px){
   .desk{display:none!important}
   .mob{display:block}
   .nav{display:flex}
-  .page{padding:8px 10px 64px}
+  .page{padding:10px 12px 70px}
   .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
   .mid{grid-template-columns:minmax(0,1fr)}
   .tabs{display:none}
-  .bar{padding:8px 10px}
+  .bar{padding:9px 12px}
+  .toasts{left:12px;right:12px;bottom:56px;max-width:none}
 }
 </style>
 </head>
@@ -121,7 +166,12 @@ pre{white-space:pre-wrap;word-break:break-word;font:13px/1.65 ui-monospace,"Noto
 "use strict";
 var LS="aicc-board";
 var cfg=null, tok=null, snap=null, ana=null, at="", anaAt="", timer=null;
-var view={tab:"home", ch:"", vid:"", card:null, doc:null, err:""};
+/* ER-140：view.card 是**卡號**（不是 snap.inbox 的索引——自動重讀後索引會指到別張卡）。
+   notes＝使用者正在寫的「改」意見（重畫不掉）；busy＝已送出等落地的卡號；
+   confirm＝「准」的第二段確認；toasts＝右下角提示（取代 alert／confirm）。 */
+var view={tab:"home", ch:"", vid:"", card:null, doc:null, err:"",
+          notes:{}, busy:{}, confirm:"", hint:"", noteOpen:"", toasts:[]};
+var toastSeq=0, deferred=false;
 var DESK=[["home","總覽"],["channels","頻道"],["scores","影片成績"],["line","產線"],["cost","成本"]];
 var MOB=[["home","首頁"],["inbox","等你"],["scores","成績"],["line","產線"]];
 
@@ -173,7 +223,7 @@ function authed(path,opt){                       // 401 先換一次 token，再
     return refresh().then(function(){ return api(path,opt); });
   });
 }
-function fetchSnap(){                            // 兩列一次拿：current（產線）＋analytics（圖表）
+function fetchSnap(auto){                        // 兩列一次拿：current（產線）＋analytics（圖表）
   return authed("/rest/v1/board_snapshot?key=in.(current,analytics)&select=key,at,data")
     .then(function(r){
     if(!r.ok) throw new Error("讀不到資料（"+r.status+"）");
@@ -183,8 +233,49 @@ function fetchSnap(){                            // 兩列一次拿：current（
       else { snap=row.data; at=row.at; }
     });
     if(!snap) throw new Error("只有分析資料，還沒有產線快照");
-    view.err=""; render();
-  }).catch(function(e){ view.err=e.message||String(e); render(); });
+    view.err=""; afterSnap(auto);
+  }).catch(function(e){ view.err=e.message||String(e); render(auto); });
+}
+/* 重讀之後：開著的彈窗那張卡不在了就關掉並說一聲（絕不改成指到別張卡）。 */
+function afterSnap(auto){
+  if(view.card&&!cardOf(view.card)){
+    var gone=view.card;
+    view.card=null; view.confirm=""; view.hint=""; lockScroll(false);
+    delete view.notes[gone];
+    if(!view.busy[gone]) toast("這張卡已被處理（"+gone+"），彈窗已關閉","bad");
+    render(); return;
+  }
+  render(auto);
+}
+function cardOf(id){
+  var rows=(snap&&snap.inbox)||[];
+  for(var i=0;i<rows.length;i++) if(rows[i].card===id) return rows[i];
+  return null;
+}
+/* ---------- 提示（取代 alert／confirm；桌機右下、手機底部） ---------- */
+function toast(text,kind,retry){
+  var t={id:++toastSeq,text:text,kind:kind||"",retry:retry||null};
+  view.toasts.push(t);
+  if(kind!=="bad") setTimeout(function(){ dropToast(t.id); },4500);
+  renderToasts(); return t.id;
+}
+function dropToast(id){
+  view.toasts=view.toasts.filter(function(t){ return t.id!==id; });
+  renderToasts();
+}
+function toastsHtml(){
+  return '<div class="toasts" id="toasts">'+view.toasts.map(function(t){
+    return '<div class="toast'+(t.kind?" "+t.kind:"")+'">'
+      +(t.kind==="wait"?'<span class="spin"></span>':"")+'<span>'+esc(t.text)+'</span>'
+      +(t.retry?'<button class="g" data-retry="'+t.id+'">重試</button>':"")
+      +'<button class="g x" data-tdrop="'+t.id+'" aria-label="關閉提示">'+ico("x")+'</button></div>';
+  }).join("")+'</div>';
+}
+function renderToasts(){                         // 只換提示那一塊，不整頁重畫
+  var host=document.getElementById("toasts");
+  if(!host){ render(); return; }
+  host.outerHTML=toastsHtml();
+  wireToasts();
 }
 function sendAction(a){
   return authed("/rest/v1/board_actions",{method:"POST",body:[a],
@@ -199,13 +290,45 @@ function waitAction(id,cb){                      // 等本機那一輪把它落�
     n++;
     authed("/rest/v1/board_actions?id=eq."+id+"&select=applied_at,result").then(function(r){
       var row=r.ok&&r.data&&r.data[0];
-      if(row&&row.applied_at){ clearInterval(iv); cb(row.result||"已落地"); fetchSnap(); }
-      else if(n>40){ clearInterval(iv); cb("本機還沒收到（下一輪會處理）"); }
+      if(row&&row.applied_at){ clearInterval(iv); cb(row.result||"已落地",true); fetchSnap(); }
+      else if(n>40){ clearInterval(iv); cb("本機還沒收到（下一輪會處理）",false); }
     });
   },5000);
 }
 
+/* ---------- 送出一個動作：立刻關彈窗＋卡變處理中＋提示（ER-140） ---------- */
+function submit(card,action,label,again){
+  view.busy[card]=true;
+  closeCard();
+  var tid=toast("已送出："+label,"wait");
+  return sendAction(action).then(function(row){
+    waitAction(row.id,function(res){
+      dropToast(tid); delete view.busy[card];
+      toast("已完成："+res); render();
+    });
+  }).catch(function(e){
+    dropToast(tid); delete view.busy[card];
+    toast("送不出去："+(e.message||e),"bad",again||null);
+    render();
+  });
+}
+
 /* ---------- 小工具 ---------- */
+/* 圖示＝內嵌手畫 SVG（ER-140 退休 emoji：📄 等在手機上字型不一致、也跟冷調樣式打架）。 */
+var ICONS={
+  x:'<path d="M4 4l8 8M12 4l-8 8"/>',
+  doc:'<path d="M9.3 2H4.7a1 1 0 00-1 1v10a1 1 0 001 1h6.6a1 1 0 001-1V5.2z"/><path d="M9.3 2v3.2h3"/>',
+  theme:'<circle cx="8" cy="8" r="5.4"/><path d="M8 2.6a5.4 5.4 0 010 10.8z" fill="currentColor" stroke="none"/>',
+  out:'<path d="M10.5 11l3-3-3-3M13.5 8H6.5M6.5 2.6H3v10.8h3.5"/>',
+  left:'<path d="M9.5 4L5.5 8l4 4"/>'
+};
+function ico(name){
+  return '<svg class="ico" viewBox="0 0 16 16" aria-hidden="true" focusable="false">'
+    +(ICONS[name]||"")+'</svg>';
+}
+function lockScroll(on){                         // 彈窗開著時鎖背景捲動
+  if(document.body) document.body.className=on?"lock":"";
+}
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
 function na(v,suf){ return (v===null||v===undefined||v==="")?'<span class="dim">量不到</span>':esc(v)+(suf||""); }
@@ -380,8 +503,8 @@ function bar(){
     +'<select id="chsel" style="width:auto;min-width:130px"><option value="">全部頻道</option>'+opts+'</select>'
     +'<span style="flex:1"></span>'
     +'<span class="dim desk">分析資料 '+(anaAt?ago(anaAt):"還沒推")+'</span>'
-    +'<button class="g" id="th" title="亮暗">◑</button>'
-    +'<button class="g" id="out">登出</button>'
+    +'<button class="g" id="th" title="亮暗" aria-label="亮暗切換">'+ico("theme")+'</button>'
+    +'<button class="g" id="out">'+ico("out")+'登出</button>'
     +(why?'<div style="flex:1 1 100%;font-size:13px">'+esc(why)
           +(lights.sentinel&&!lights.sentinel.ok?'（哨兵心跳 '+esc(lights.sentinel.at)+'）':'')+'</div>':'')
     +'</div>'
@@ -397,9 +520,21 @@ function nav(){
 }
 
 /* ---------- 首頁 ---------- */
-function kpiTile(title,val,note,red){
-  return '<div class="kpi'+(red?" red":"")+'"><span>'+esc(title)+'</span><b>'+val+'</b>'
-    +(note?'<div class="dim">'+note+'</div>':"")+'</div>';
+/* 指標卡：標籤→大數字→漲跌（跟前一期比，算不出來就不顯示，不假裝）→迷你趨勢。 */
+function delta(now,prev,what){
+  if(now==null||prev==null||!prev) return "";
+  var p=(now-prev)/Math.abs(prev)*100;
+  var cls=p>1?"up":(p<-1?"down":"flat"), mark=p>1?"▲":(p<-1?"▼":"＝");
+  return '<div class="d '+cls+'">'+mark+' '+Math.abs(p).toFixed(0)+'%'
+    +'<span class="dim">'+esc(what||"比前一期")+'</span></div>';
+}
+function kpiTile(title,val,note,red,dl){
+  return '<div class="kpi'+(red?" red":"")+'"><span class="t">'+esc(title)+'</span><b>'+val+'</b>'
+    +(dl||"")+(note?'<div class="dim">'+note+'</div>':"")+'</div>';
+}
+function sum7(d,back){                           // d 的倒數第 back+7 ～ back 天加總
+  var xs=back?d.slice(-(back+7),-back):d.slice(-7);
+  return xs.length?xs.reduce(function(a,b){return a+(b||0);},0):null;
 }
 function tiles(){
   var k=snap.kpi||{}, r=snap.resources||{};
@@ -416,7 +551,8 @@ function tiles(){
   return '<div class="kpis">'
     +kpiTile("本週產量",fmt(done)+' <span class="dim">／'+(target||"？")+' 片</span>',
              meter(done,target||null,"沒有設週目標"))
-    +kpiTile("7 日觀看",fmt(sumDaily(7)),spark(d.slice(-14)))
+    +kpiTile("7 日觀看",fmt(sumDaily(7)),spark(d.slice(-14)),false,
+             delta(sum7(d,0),d.length>=14?sum7(d,7):null,"比前 7 日"))
     +kpiTile("平均觀看比例",avp==null?'<span class="dim">量不到</span>':avp+"%",
              spark(vids.map(function(v){var s=latestSnap(v);return s?s.avp:null;}).reverse()))
     +kpiTile("30 秒留存",r30==null?'<span class="dim">量不到</span>':r30,
@@ -441,10 +577,10 @@ function dailyChart(){
   var marks=[];
   cs.forEach(function(c){ (c.publishes||[]).forEach(function(p){
     var i=labels.indexOf(p.d);
-    if(i>=0) marks.push({i:i,color:p.kind==="short"?"var(--accent2)":"var(--accent)",
+    if(i>=0) marks.push({i:i,color:p.kind==="short"?"var(--series2)":"var(--accent)",
                          label:p.d+" 公開："+p.title});
   }); });
-  var series=[{name:"長片",color:"var(--accent)",pts:L},{name:"Shorts",color:"var(--accent2)",pts:S}];
+  var series=[{name:"長片",color:"var(--accent)",pts:L},{name:"Shorts",color:"var(--series2)",pts:S}];
   return '<div class="box"><h2>每日觀看<span class="c">'+((ana&&ana.days)||30)
     +' 天・虛線＝公開日</span></h2>'+svgLines(labels,series,marks,260,md)+legend(series)
     +'<div class="dim">'+esc(cs[0].why||"")+'</div></div>';
@@ -529,11 +665,9 @@ function mobHome(){
   var h='<div class="box" style="text-align:center;padding:16px">'
     +'<div style="font-size:26px;font-weight:700">'+(staleWhy()?"要看一下":(snap.status==="ONLINE"?"正常":"注意"))+'</div>'
     +'<div class="dim">'+esc(staleWhy()||("快照 "+hhmm(at)+"・"+(snap.channels||[]).length+" 個頻道"))+'</div></div>';
-  h+=n?('<div class="box" style="border-color:var(--warn)"><h2>等你 '+n+' 件</h2>'
-        +(snap.inbox||[]).slice(0,3).map(function(r,i){
-          return '<div class="row"><b>'+esc(r.card)+'</b> '+esc(String(r.title||"").slice(0,28))
-            +'<div class="acts"><button class="p" data-open="'+i+'">處理</button></div></div>';
-        }).join("")+(n>3?'<div class="row dim">還有 '+(n-3)+' 件，看「等你」那一頁</div>':"")+'</div>')
+  h+=n?('<div class="box"><h2>等你 '+n+' 件</h2>'
+        +(snap.inbox||[]).slice(0,3).map(inboxCard).join("")
+        +(n>3?'<div class="row dim">還有 '+(n-3)+' 件，看「等你」那一頁</div>':"")+'</div>')
       :'<div class="box"><h2>等你</h2><div class="dim">沒有待決的卡。</div></div>';
   h+='<div class="kpis">'
     +kpiTile("本週產量",fmt(done)+'／'+(target||"？"),"")
@@ -568,8 +702,11 @@ function channelsPage(){
     if((c.pool||[]).length){
       h+='<div class="box"><h2>任務卡池<span class="c">擋下＝這一張不許開工</span></h2>'
         +c.pool.map(function(p){
-          return '<div class="row"><b>'+esc(p.tc)+'</b> '+esc(p.title)
-            +(p.blocked?'<span class="pill bad">已擋下 '+esc(p.reason||"")+'</span>':"")
+          return '<div class="row"><div class="k-meta"><span>任務卡</span>'
+            +'<span class="dim">・</span><span>'+esc(p.tc)+'</span>'
+            +(p.blocked?'<span class="pill bad">已擋下</span>':'<span class="pill ok">可開工</span>')+'</div>'
+            +'<div class="k-title">'+esc(p.title)+'</div>'
+            +(p.blocked&&p.reason?'<div class="k-note">擋下理由：'+esc(p.reason)+'</div>':"")
             +'<div class="acts"><button data-pool="'+esc(c.slug)+":"+esc(p.tc)+":"+(p.blocked?"un":"do")
             +'">'+(p.blocked?"解除擋下":"擋下這張")+'</button></div></div>';
         }).join("")+'</div>';
@@ -640,24 +777,41 @@ function costPage(){
     }).join("")+'</table></div></div>';
   return h+'</div>';
 }
+/* 一張卡固定三層：標籤（類型・片號・頻道・時間）→標題（人話，可換行不截斷）→說明。
+   鍵是卡號（data-open＝卡號），不是陣列索引。 */
+function kindLabel(r){ return r.kind==="related"?"設相關影片":"決策卡"; }
+/* 標題一行、說明一行：佇列裡的決策卡標題常有兩三百字（整張卡的細節都塞在標題），
+   這裡在第一個「：」或「——」切開——標題不截斷也不會變成一面牆，細節落到說明欄。 */
+function titleParts(r,full){
+  var t=String(r.title||""), n=r.note||"";
+  if(!n&&t.length>60){
+    var m=t.match(/^([^：；]{8,60}?)(?:——|：|；)\s*([\s\S]+)$/);
+    if(m){ t=m[1]; n=m[2]; } else { n=t.slice(56); t=t.slice(0,56); }
+  }
+  if(!full&&n.length>120) n=n.slice(0,120)+"…（打開卡看全部）";
+  return {t:t,n:n};
+}
+function inboxCard(r){
+  var c=ch(r.channel), busy=!!view.busy[r.card], p=titleParts(r,false);
+  var meta=[kindLabel(r),r.build||"",c?c.name:(r.channel||"非產線"),r.card,r.date||""]
+    .filter(Boolean).map(esc).join(' <span class="dim">・</span> ');
+  return '<div class="row'+(busy?" busy":"")+(r.gate_open===false?" muted":"")+'">'
+    +'<div class="k-meta"><span class="chip" style="background:'
+    +esc(c&&c.color?c.color:"var(--series2)")+'"></span>'+meta
+    +(r.gate_open===false?'<span class="pill">關卡已過・卡未結</span>':"")+'</div>'
+    +'<div class="k-title">'+esc(p.t)+'</div>'
+    +'<div class="k-note">'+esc(p.n||("期限 "+(r.due||"—")+"・逾期預設："+(r.default||"—")))+'</div>'
+    +(busy?'<div class="acts"><span class="spin"></span><span class="dim">處理中…</span></div>'
+          :'<div class="acts"><button class="p" data-open="'+esc(r.card)+'">'
+           +(r.kind==="related"?"打開":"打開決策卡")+'</button></div>')
+    +'</div>';
+}
 function inboxPage(){
   var rows=(snap.inbox||[]);
   if(!rows.length) return '<div class="page"><div class="box"><h2>等你</h2>'
     +'<div class="dim">沒有待決的卡。</div></div></div>';
   return '<div class="page"><div class="box"><h2>等你<span class="c">'+rows.length
-    +' 件・點一張開決策卡</span></h2>'
-    +rows.map(function(r,i){
-      var c=ch(r.channel);
-      return '<div class="row'+(r.gate_open?"":" muted")+'">'
-        +'<span class="chip" style="background:'+esc(c?c.color:"#888")+'"></span>'
-        +'<b>'+esc(r.card)+'</b> '+(r.build?'<span class="pill">'+esc(r.build)+'</span>':"")
-        +'<span class="dim">'+esc(c?c.name:r.channel||"非產線")+'</span>'
-        +(r.kind==="related"?'<span class="pill">設相關影片</span>':"")
-        +(r.gate_open?'':'<span class="pill muted">關卡已過・卡未結</span>')
-        +'<div style="margin:6px 0">'+esc(r.title)+'</div>'
-        +'<div class="stat">提出 '+esc(r.date)+'・期限 '+esc(r.due)+'・逾期預設：'+esc(r.default||"—")+'</div>'
-        +'<div class="acts"><button class="p" data-open="'+i+'">打開決策卡</button></div></div>';
-    }).join("")+'</div></div>';
+    +' 件・點一張開決策卡</span></h2>'+rows.map(inboxCard).join("")+'</div></div>';
 }
 
 /* ---------- 詳細：一支片一頁 ---------- */
@@ -679,7 +833,7 @@ function retChart(v){
 function mixBar(v){
   var t=(v.traffic||[]);
   if(!t.length) return '<div class="dim">量不到：流量來源報表還沒含這一支</div>';
-  var cols=["var(--accent)","var(--accent2)","var(--ok)","var(--warn)","var(--bad)","var(--dim)"];
+  var cols=["var(--accent)","var(--series2)","var(--ok)","var(--warn)","var(--bad)","var(--dim)"];
   return '<div class="mix">'+t.map(function(x,i){
       return '<i style="width:'+(x.pct||0)+'%;background:'+cols[i%cols.length]+'" title="'
         +esc(x.zh)+' '+(x.pct||0)+'%"></i>';
@@ -692,12 +846,12 @@ function mixBar(v){
 function videoPage(){
   var v=vidOf(view.vid);
   if(!v) return '<div class="page"><div class="box">找不到這支片的分析資料。'
-    +'<div class="acts"><button id="back">← 返回</button></div></div></div>';
+    +'<div class="acts"><button id="back">'+ico("left")+'返回</button></div></div></div>';
   var S=["48h","7d","28d"];
   var mv=niceMax(Math.max.apply(null,[1].concat(S.map(function(k){
     return (v.snaps[k]||{}).views||0; }))));
   var h='<div class="page"><div class="box"><h2>'
-    +'<button class="g" id="back">← 返回</button>'+esc(v.tc)
+    +'<button class="g" id="back">'+ico("left")+'返回</button>'+esc(v.tc)
     +'<span class="c">'+esc(v.kind==="short"?"Shorts":"長片")+'・'+esc(v.published||"")+'</span></h2>'
     +'<div>'+esc(v.title)+'</div></div>';
   /* ① 三快照 */
@@ -761,47 +915,53 @@ function videoPage(){
   return h+'</div>';
 }
 
-/* ---------- 決策卡彈窗（彈窗只用在這裡） ---------- */
+/* ---------- 決策卡彈窗（彈窗只用在這裡；一律以卡號為鍵） ---------- */
 function cardModal(){
-  var i=view.card, r=(snap.inbox||[])[i];
-  if(r===undefined||r===null) return "";
-  var c=ch(r.channel);
-  var head='<h2><span class="chip" style="background:'+esc(c?c.color:"#888")+'"></span>'
-    +esc(r.card)+(r.build?' <span class="pill">'+esc(r.build)+'</span>':"")
-    +'<span class="c">'+esc(c?c.name:r.channel||"非產線")+'</span>'
-    +'<button class="g" id="mx" style="margin-left:auto">關閉</button></h2>';
+  var id=view.card, r=id?cardOf(id):null;
+  if(!r) return "";
+  var c=ch(r.channel), p=titleParts(r,true);
+  var meta=[kindLabel(r),r.build||"",c?c.name:(r.channel||"非產線"),r.card]
+    .filter(Boolean).map(esc).join(' <span class="dim">・</span> ');
+  var head='<div class="k-meta"><span class="chip" style="background:'
+    +esc(c&&c.color?c.color:"var(--series2)")+'"></span>'+meta
+    +'<button class="g" id="mx" style="margin-left:auto" aria-label="關閉">'+ico("x")+'關閉</button></div>'
+    +'<div class="k-title">'+esc(p.t)+'</div>'
+    +(p.n?'<div class="k-note">'+esc(p.n)+'</div>':"");
+  var wrap=function(inner){
+    return '<div class="doc" id="mbg"><div role="dialog" aria-modal="true" aria-label="'
+      +esc(r.card)+'">'+head+inner+'</div></div>';
+  };
   if(r.kind==="related"){
-    return '<div class="doc" id="mbg"><div>'+head
-      +'<div style="margin:6px 0">'+esc(r.title)+'</div>'
-      +'<div class="stat">這支 Shorts '+esc(r.due)+' 公開</div>'
-      +'<div class="acts"><a class="g" href="'+esc(r.url)+'" target="_blank" rel="noopener">到 Studio 設 →</a>'
-      +'<button class="p" data-rel="'+i+'">已設好</button>'
-      +'<span class="dim" id="res'+i+'"></span></div></div></div>';
+    return wrap('<div class="stat">這支 Shorts '+esc(r.due)+' 公開</div>'
+      +'<div class="acts"><a class="btn" href="'+esc(r.url)+'" target="_blank" rel="noopener">'
+      +'到 Studio 設定 ↗</a>'
+      +'<button class="p" data-rel="'+esc(r.card)+'">已設好</button></div>');
   }
   var docs=(r.docs||[]).map(function(d,j){
-    return '<button class="g" data-doc="'+i+":"+j+'">📄 '+esc(d.label)+'</button>';}).join("");
-  return '<div class="doc" id="mbg"><div>'+head
-    +(r.gate_open?'<span class="pill warn">關卡開著</span>'
-                 :'<span class="pill muted">關卡已過・卡未結</span>')
-    +'<div style="margin:6px 0">'+esc(r.title)+'</div>'
+    return '<button class="g" data-doc="'+esc(r.card)+"|"+j+'">'+ico("doc")+esc(d.label)+'</button>';
+  }).join("");
+  var okTxt=view.confirm===r.card?("確定放行 "+(r.build||r.card)+"？"):"准";
+  return wrap((r.gate_open?'<div class="k-note">關卡開著，裁「准」會立刻放行 '
+                           +esc(r.build||r.card)+'。</div>'
+                          :'<div class="k-note">關卡已過・卡未結，裁示只寫回決策卡。</div>')
     +'<div class="stat">提出 '+esc(r.date)+'・期限 '+esc(r.due)+'・逾期預設：'+esc(r.default||"—")+'</div>'
     +(docs?'<div class="acts">'+docs+'</div>':"")
     +'<div class="acts">'
-    +(r.ambiguous?'<select data-amb="'+i+'" style="width:auto">'+(snap.channels||[]).map(function(x){
+    +(r.ambiguous?'<select id="amb" style="width:auto">'+(snap.channels||[]).map(function(x){
         return '<option value="'+esc(x.slug)+'">'+esc(x.name)+'</option>';}).join("")+'</select>':"")
-    +'<button class="p" data-act="'+i+':准">准</button>'
-    +'<button data-act="'+i+':不動">不動</button>'
-    +'<button data-act="'+i+':改">改…</button>'
-    +'<span class="dim" id="res'+i+'"></span></div>'
-    +'<div id="note'+i+'" style="display:none;margin-top:6px">'
-    +'<textarea placeholder="要改什麼？一句話（會跟著裁示寫回決策卡）"></textarea>'
-    +'<div class="acts"><button class="p" data-send="'+i+'">送出「改」</button></div></div>'
-    +'</div></div>';
+    +'<button class="p" data-act="'+esc(r.card)+'|准">'+esc(okTxt)+'</button>'
+    +'<button data-act="'+esc(r.card)+'|不動">不動</button>'
+    +'<button data-act="'+esc(r.card)+'|改">改…</button></div>'
+    +(view.noteOpen===r.card?'<div style="margin-top:8px">'
+      +'<textarea id="note" placeholder="要改什麼？一句話（會跟著裁示寫回決策卡）">'
+      +esc(view.notes[r.card]||"")+'</textarea>'
+      +(view.hint?'<div class="hint">'+esc(view.hint)+'</div>':"")
+      +'<div class="acts"><button class="p" data-send="'+esc(r.card)+'">送出「改」</button></div></div>':""));
 }
 function docPage(){
   var d=view.doc;
   return '<div class="page"><div class="box"><h2>'+esc(d.title)
-    +'<button class="g" id="back" style="margin-left:auto">← 返回</button></h2>'
+    +'<button class="g" id="back" style="margin-left:auto">'+ico("left")+'返回</button></h2>'
     +(d.truncated?'<div class="dim">（太長，只推了前面一段）</div>':"")
     +'<pre>'+esc(d.text)+'</pre></div></div>';
 }
@@ -817,16 +977,48 @@ function body(){
   if(view.tab==="inbox") return inboxPage();
   return home();
 }
-function render(){
-  if(!snap) return;
+/* 自動重讀（60 秒一輪）不得把老闆正在寫的字或開著的彈窗清掉：整頁重畫延後到彈窗關上
+   或輸入框空了為止（deferred），關上時再補一次重讀。 */
+function editing(){
+  if(view.card) return true;
+  var ae=document.activeElement;
+  if(ae&&(ae.tagName==="TEXTAREA"||ae.tagName==="INPUT")) return true;
+  return Object.keys(view.notes).some(function(k){ return (view.notes[k]||"").trim()!==""; });
+}
+function render(auto){
+  if(!snap) return false;
+  if(auto&&editing()){ deferred=true; return false; }
   var app=document.getElementById("app");
   app.innerHTML=bar()+(view.err?'<div class="page"><div class="box err">'+esc(view.err)+'</div></div>':"")
-    +body()+cardModal()+nav();
+    +body()+cardModal()+nav()+toastsHtml();
   wire();
+  lockScroll(!!view.card);
+  var dlg=document.querySelector(".doc [data-act],.doc button");   // 焦點進入彈窗
+  if(view.card&&dlg&&dlg.focus) dlg.focus();
+  return true;
 }
-function go(tab){ view.tab=tab; view.vid=""; view.doc=null; view.card=null; render(); window.scrollTo(0,0); }
+function openCard(id){
+  if(!cardOf(id)){ toast("這張卡已經不在了（"+id+"）","bad"); return; }
+  view.card=id; view.confirm=""; view.hint=""; view.noteOpen=""; render();
+}
+function closeCard(){                             // 關上就把草稿丟掉（草稿只活在彈窗開著的時候）
+  var id=view.card;
+  view.card=null; view.confirm=""; view.hint=""; view.noteOpen="";
+  if(id) delete view.notes[id];
+  lockScroll(false);
+  render();
+  if(deferred){ deferred=false; fetchSnap(); }
+}
+function go(tab){ view.tab=tab; view.vid=""; view.doc=null; closeCard(); window.scrollTo(0,0); }
 function each(sel,fn){ Array.prototype.forEach.call(document.querySelectorAll(sel),fn); }
+function wireToasts(){
+  each("[data-tdrop]",function(b){ b.onclick=function(){ dropToast(+b.getAttribute("data-tdrop")); }; });
+  each("[data-retry]",function(b){ b.onclick=function(){
+    var t=view.toasts.filter(function(x){ return x.id===+b.getAttribute("data-retry"); })[0];
+    if(t&&t.retry){ dropToast(t.id); t.retry(); } }; });
+}
 function wire(){
+  wireToasts();
   var sel=document.getElementById("chsel");
   if(sel) sel.onchange=function(){ view.ch=sel.value; view.vid=""; render(); window.scrollTo(0,0); };
   var th=document.getElementById("th");
@@ -844,61 +1036,77 @@ function wire(){
   each("[data-tab]",function(b){ b.onclick=function(){ go(b.getAttribute("data-tab")); }; });
   each("[data-vid]",function(b){ b.onclick=function(){
     view.vid=b.getAttribute("data-vid"); view.card=null; render(); window.scrollTo(0,0); }; });
-  each("[data-open]",function(b){ b.onclick=function(){
-    view.card=+b.getAttribute("data-open"); render(); }; });
+  each("[data-open]",function(b){ b.onclick=function(){ openCard(b.getAttribute("data-open")); }; });
   var mx=document.getElementById("mx"), mbg=document.getElementById("mbg");
-  if(mx) mx.onclick=function(){ view.card=null; render(); };
-  if(mbg) mbg.onclick=function(e){ if(e.target===mbg){ view.card=null; render(); } };
+  if(mx) mx.onclick=function(){ closeCard(); };
+  if(mbg) mbg.onclick=function(e){ if(e.target===mbg) closeCard(); };
+  var ta=document.getElementById("note");
+  if(ta) ta.oninput=function(){ view.notes[view.card]=ta.value; view.hint=""; };
   each("[data-doc]",function(b){ b.onclick=function(){
-    var p=b.getAttribute("data-doc").split(":");
-    view.doc=(snap.inbox[+p[0]].docs||[])[+p[1]]; view.card=null; render(); window.scrollTo(0,0); }; });
+    var p=b.getAttribute("data-doc").split("|"), r=cardOf(p[0]);
+    view.doc=((r&&r.docs)||[])[+p[1]]; closeCard(); window.scrollTo(0,0); }; });
   each("[data-act]",function(b){ b.onclick=function(){
-    var p=b.getAttribute("data-act").split(":"), i=+p[0], v=p[1];
-    if(v==="改"){ document.getElementById("note"+i).style.display="block"; return; }
-    decide(i,v,"");
-  }; });
-  each("[data-send]",function(b){ b.onclick=function(){
-    var i=+b.getAttribute("data-send");
-    var t=document.getElementById("note"+i).querySelector("textarea").value.trim();
-    if(!t){ alert("「改」要寫一句意見"); return; }
-    decide(i,"改",t); }; });
-  each("[data-rel]",function(b){ b.onclick=function(){
-    var i=+b.getAttribute("data-rel"), r=snap.inbox[i], o=document.getElementById("res"+i);
-    b.disabled=true; o.textContent="送出中…";
-    sendAction({kind:"related-done",channel:r.channel,build:r.build,card:r.card,verdict:"",note:""})
-      .then(function(row){ waitAction(row.id,function(res){ o.textContent="→ "+res; }); })
-      .catch(function(e){ o.textContent="失敗："+(e.message||e); }); }; });
+    var p=b.getAttribute("data-act").split("|"); act(p[0],p[1]); }; });
+  each("[data-send]",function(b){ b.onclick=function(){ sendNote(b.getAttribute("data-send")); }; });
+  each("[data-rel]",function(b){ b.onclick=function(){ relDone(b.getAttribute("data-rel")); }; });
   each("[data-pool]",function(b){ b.onclick=function(){
-    var p=b.getAttribute("data-pool").split(":");
-    b.disabled=true; b.textContent="送出中…";
-    sendAction({kind:p[2]==="un"?"pool-unblock":"pool-block",channel:p[0],build:p[1],
-                card:"",verdict:"",note:""})
-      .then(function(row){ waitAction(row.id,function(r){ b.textContent=r; }); })
-      .catch(function(e){ b.textContent="失敗："+(e.message||e); }); }; });
+    var p=b.getAttribute("data-pool").split(":"); poolToggle(b,p[0],p[1],p[2]==="un"); }; });
 }
-function decide(i,verdict,note){
-  var r=snap.inbox[i], out=document.getElementById("res"+i);
+/* ---------- 動作：都以卡號為鍵，送出成功就關彈窗、卡變處理中、結果走提示 ---------- */
+function act(card,verdict){
+  var r=cardOf(card);
+  if(!r){ closeCard(); toast("這張卡已被處理（"+card+"）","bad"); return; }
+  if(verdict==="改"){ view.noteOpen=card; view.confirm=""; view.hint=""; render();
+    var ta=document.getElementById("note"); if(ta&&ta.focus) ta.focus(); return; }
+  if(verdict==="准"&&view.confirm!==card){      // 二段確認：按一次先變成問句，不用原生 confirm
+    view.confirm=card; render(); return;
+  }
+  decide(card,verdict,"");
+}
+function sendNote(card){
+  var t=(view.notes[card]||"").trim();
+  if(!t){ view.hint="「改」要寫一句意見，不然產線不知道改什麼。"; render(); return; }
+  decide(card,"改",t);
+}
+function decide(card,verdict,note){
+  var r=cardOf(card);
+  if(!r){ closeCard(); toast("這張卡已被處理（"+card+"）","bad"); return; }
   var slug=r.channel;
   if(r.ambiguous){
-    var s=document.querySelector('[data-amb="'+i+'"]');
+    var s=document.getElementById("amb");
     slug=s?s.value:"";
-    if(!slug){ out.textContent="請先選頻道"; return; }
+    if(!slug){ view.hint="這張卡認不出頻道，請先選一個。"; render(); return; }
   }
-  if(verdict==="准"&&!confirm("要裁「准」嗎？"+(r.gate_open?"（會立刻放行 "+(r.build||"")+" 的關卡）":""))) return;
-  out.textContent="送出中…";
-  each('[data-act^="'+i+':"]',function(b){ b.disabled=true; });
-  sendAction({kind:"decide",channel:slug,build:r.build||"",card:r.card,verdict:verdict,note:note})
-    .then(function(row){ out.textContent="已送出，等本機落地…";
-      waitAction(row.id,function(res){ out.textContent="→ "+res; }); })
-    .catch(function(e){ out.textContent="失敗："+(e.message||e); });
+  var action={kind:"decide",channel:slug,build:r.build||"",card:card,verdict:verdict,note:note};
+  submit(card,action,card+" 裁「"+verdict+"」",function(){ decide(card,verdict,note); });
+}
+function relDone(card){
+  var r=cardOf(card);
+  if(!r){ closeCard(); toast("這張卡已被處理（"+card+"）","bad"); return; }
+  submit(card,{kind:"related-done",channel:r.channel,build:r.build,card:card,verdict:"",note:""},
+         card+" 已設好",function(){ relDone(card); });
+}
+function poolToggle(btn,slug,tc,un){             // 卡池：按鈕轉圈→恢復按鈕，結果走提示
+  var label=btn.innerHTML;
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>送出中…';
+  var done=function(msg,kind){
+    btn.disabled=false; btn.innerHTML=label; toast(msg,kind||"");
+  };
+  sendAction({kind:un?"pool-unblock":"pool-block",channel:slug,build:tc,card:"",verdict:"",note:""})
+    .then(function(row){ waitAction(row.id,function(res){ done((un?"解除擋下 ":"擋下 ")+tc+"："+res); }); })
+    .catch(function(e){ done("送不出去："+(e.message||e),"bad"); });
 }
 
 /* ---------- 起步 ---------- */
 function start(){
   fetchSnap();
   clearInterval(timer);
-  timer=setInterval(function(){ if(!document.hidden) fetchSnap(); },60000);
-  document.addEventListener("visibilitychange",function(){ if(!document.hidden) fetchSnap(); });
+  timer=setInterval(function(){ if(!document.hidden) fetchSnap(true); },60000);
+  document.addEventListener("visibilitychange",function(){ if(!document.hidden) fetchSnap(true); });
+  if(!start.keyed){                              // Esc 關彈窗（只掛一次）
+    start.keyed=true;
+    document.addEventListener("keydown",function(e){ if(e.key==="Escape"&&view.card) closeCard(); });
+  }
 }
 (function(){
   var t=localStorage.getItem(LS+"-theme");
