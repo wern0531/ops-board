@@ -1047,7 +1047,7 @@ function mobAsk(){                                 // 手機：等你橫幅（�
     +'<span class="num" style="width:30px;height:30px;border-radius:50%;background:var(--warn);'
     +'color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">'
     +rows.length+'</span>'
-    +'<span style="flex:1;min-width:0;text-align:left"><b>支片等你放行</b>'
+    +'<span style="flex:1;min-width:0;text-align:left"><b>'+esc(inboxWord(""))+'</b>'
     +'<span class="ell" style="display:block;font-size:12px;opacity:.8">'
     +esc(rows.map(function(r){ return askTitle(r).slice(0,12); }).join("・"))+'</span></span>'
     +'<span aria-hidden="true">›</span></button>';
