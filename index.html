@@ -998,7 +998,7 @@ function notes(slug){
   (snap.channels||[]).forEach(function(c){
     if(slug&&c.slug!==slug) return;
     (c.alerts||[]).forEach(function(a){
-      if(/放行|等老闆/.test(a.text||"")) return;
+      if(/放行|等老闆|額度/.test(a.text||"")) return;   // 這兩件上面已經各有一行，不重複講
       if(a.build&&inbox().some(function(r){ return r.build===a.build; })) return;
       var t=plain(a.text).slice(0,60);
       if(t) ns.push([a.level==="P0"||a.level==="P1"?"var(--bad)":"var(--warn)",
