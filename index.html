@@ -1327,7 +1327,12 @@ function costPage(){
     +tile("每片平均",(pv.usd==null?'<span class="dim">量不到</span>':"US$"+fmt(pv.usd)),
           (q.per_video_pct!=null?"≈ 週額度 "+q.per_video_pct+"%":"換算率還算不出來"))
     +tile("會不會停擺",'<span class="'+lightCls+'">'+esc(q.light||"未知")+'</span>',
-          esc(plain(q.text||"")).slice(0,60))
+          q.light==="紅"?"產線站會撞頂排隊":(q.light==="黃"
+            ?"照目前燒法到重設約 "+(q.projected_pct==null?"？":q.projected_pct+"%")
+              +"・建議暫停開新單"
+            :(q.light==="綠"?"產線這週需要 "+(q.need_pct==null?"？":q.need_pct+"%")
+                +"・邊際 "+(q.margin_pct==null?"？":q.margin_pct+"%")
+              :esc(qAge(q)))))
     +'</div>'+paneWrap("main",[{label:"產線用掉多少額度", html:
      '<section class="panel grow"><div class="ph"><h2>產線用掉多少額度</h2>'
     +'<span class="dim">本週・按頻道與站・真實成本</span></div>'
