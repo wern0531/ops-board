@@ -832,13 +832,16 @@ function mCost(){
       +'<span class="num" style="width:56px;text-align:right;font-weight:600">'+txt+'</span></div>';
   };
   var over=cash.week!=null&&cash.cap&&cash.week>cash.cap, overQ=q.pct!=null&&q.pct>100;
+  /* 手機只放得下一個數字：留「AI 額度」（現金在「成本」那一頁看） */
   return '<div class="card" style="flex-direction:column;align-items:stretch;gap:6px;'
     +'justify-content:center">'
-    +'<span class="lab mob">本週花費</span>'
+    +'<div class="col mob" style="align-items:center"><span class="lab">AI 額度</span>'
+    +'<span class="big">'+(q.pct==null?"—":q.pct+"%")+'</span></div>'
+    +'<div class="xtra" style="width:100%">'
     +line("AI 額度",q.pct,(q.pct==null?"—":q.pct+"%"),overQ?"r":"")
     +line("外部現金",(cash.week!=null&&cash.cap?cash.week/cash.cap*100:null),
           (cash.week==null?"—":"$"+fmt(cash.week)+(cash.cap?"/"+fmt(cash.cap):"")),over?"r":"g")
-    +'</div>';
+    +'</div></div>';
 }
 /* 需要注意的排最前面：卡住 → 有片等你 → 在跑 → 沒開線。 */
 function attn(c){
