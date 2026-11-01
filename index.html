@@ -177,8 +177,11 @@ img.shot{width:100%;height:auto;border-radius:10px;border:1px solid var(--line);
 .stg i.on{background:var(--accent)}
 .stg em{font-size:11px;color:var(--dim);font-style:normal;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis}
+/* ER-163 B8：片號標籤的 min-content 會把七段撐出卡外（手機整張卡被推到看不見右半邊）→
+   允許它自己縮，欄寬維持 1fr。 */
 .stg b{font-size:11px;font-weight:600;align-self:flex-start;padding:1px 5px;border-radius:6px;
-  background:var(--accent);color:var(--accent-ink);white-space:nowrap}
+  background:var(--accent);color:var(--accent-ink);white-space:nowrap;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .bars{display:flex;align-items:flex-end;gap:2px;height:92px;border-bottom:1px solid var(--line)}
 .bars i{flex:1 1 0;display:block;min-height:2px;border-radius:2px 2px 0 0;background:var(--accent);
   opacity:.45}
@@ -208,8 +211,8 @@ img.shot{width:100%;height:auto;border-radius:10px;border:1px solid var(--line);
   /* ER-163 B8：375 寬下各歸各位——頂列一行放得下（登出只留圖示、頻道選單自己縮）、
      七段的字不折行（只縮字級，必要時省略號）、30 天長條不多佔高度。 */
   .bar{padding:9px 12px;gap:6px}
-  .bar select{min-width:0!important;flex:1 1 50px;width:auto}
-  .bar .lbl{display:none}
+  .bar select{min-width:0!important;flex:0 1 110px;width:auto}
+  .bar .lbl,.bar .pill.age{display:none}   /* 登出只留圖示；資料時間首頁那行已經有了 */
   .stg em{font-size:10px;line-height:1.25}
   .chcap{margin-top:4px!important}
   .bars{height:56px}
@@ -590,7 +593,7 @@ function bar(){
   var n=(snap.inbox||[]).length;
   return '<div class="bar'+(why?" red":"")+'">'
     +light()
-    +'<span class="pill">資料 '+(age===null?"—":(age<90?"剛剛":Math.round(age/60)+" 分前"))+'</span>'
+    +'<span class="pill age">資料 '+(age===null?"—":(age<90?"剛剛":Math.round(age/60)+" 分前"))+'</span>'
     +(n?'<span class="pill big" id="togo">等你 '+n+'</span>':'<span class="pill ok">沒有等你的</span>')
     +'<select id="chsel" style="width:auto;min-width:130px"><option value="">全部頻道</option>'+opts+'</select>'
     +'<span style="flex:1"></span>'
