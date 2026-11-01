@@ -160,6 +160,8 @@ h3{font-size:14px;font-weight:700;margin:0}
 .c3{flex:1;min-height:0;display:grid;grid-template-columns:380px minmax(0,1fr) 300px;gap:14px}
 /* 欄＝一頁：桌機三欄並排，手機一次一欄（底下一條「‹ 1/3 ›」） */
 .pane{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:14px}
+.pane>.panel{flex:none}
+.pane>.panel.grow{flex:1}
 .pside{flex:none;width:340px}
 .panes{display:none}
 .stg{flex:1;min-height:0;display:flex;flex-direction:column;gap:4px}
@@ -679,6 +681,19 @@ function pgAt(k,n,per){
   return p>m?m:(p<0?0:p);
 }
 function slicePg(k,list,per){ var p=pgAt(k,list.length,per); return list.slice(p*per,p*per+per); }
+/* 一欄＝一頁：桌機並排，手機一次一欄（放不下就換頁，不縮小） */
+function paneWrap(cls,items){
+  var n=items.length;
+  if(view.pane>=n) view.pane=n-1;
+  if(view.pane<0) view.pane=0;
+  return '<div class="'+cls+'">'+items.map(function(it,i){
+      return '<div class="pane'+(view.pane===i?" on":"")+(it.side?" pside":"")+'">'+it.html+'</div>';
+    }).join("")+'</div>'
+    +(n>1?'<div class="panes"><button class="g" data-pane="-1"'+(view.pane<=0?" disabled":"")
+      +' aria-label="上一頁">‹</button><span>'+esc(items[view.pane].label)+'（'+(view.pane+1)
+      +' / '+n+'）</span><button class="g" data-pane="1"'+(view.pane>=n-1?" disabled":"")
+      +' aria-label="下一頁">›</button></div>':'');
+}
 function pager(k,n,per,unit){
   var ps=pages(n,per);
   if(ps<2) return '<span class="dim">'+fmt(n)+' '+(unit||"件")+'</span>';
@@ -919,8 +934,10 @@ function askMeta(r){
 }
 function askCard(r,slug){
   var busy=!!view.busy[r.card], th=(r.thumbs||[])[0];
-  var open=r.kind==="related"?('data-open="'+esc(r.card)+'"')
-          :('data-film="'+esc(r.channel+"|"+r.build)+'"');
+  /* 認得出是哪一支片的 → 開抽屜；設相關影片、認不出頻道的 → 小彈窗（那是卡不是片） */
+  var asFilm=r.kind==="decide"&&r.channel&&r.build&&!r.ambiguous;
+  var open=asFilm?('data-film="'+esc(r.channel+"|"+r.build)+'"')
+                 :('data-open="'+esc(r.card)+'"');
   return '<div class="ask'+(busy?" busy":"")+'"><div class="hd">'
     +(th?'<img class="thumb" src="'+esc(th.src)+'" alt="縮圖">'
         :'<span class="thumb">沒抓到縮圖</span>')
@@ -929,8 +946,9 @@ function askCard(r,slug){
     +'<span class="dim">'+esc(askMeta(r))+'</span></div></div>'
     +(busy?'<div class="acts"><span class="spin"></span><span class="dim">處理中…</span></div>'
       :'<div class="acts">'
-       +(slug?'':'<button '+open+'>'+(r.kind==="related"?"打開待辦":"看片與縮圖")+'</button>')
-       +'<button class="p" '+open+'>'+(r.kind==="related"?"去設定":"看並放行")+'</button></div>')
+       +(slug?'':'<button '+open+'>'+(asFilm?"看片與縮圖":"打開這張")+'</button>')
+       +'<button class="p" '+open+'>'+(asFilm?"看並放行":(r.kind==="related"?"去設定":"處理"))
+       +'</button></div>')
     +'</div>';
 }
 function asksPanel(slug,limit){
@@ -973,7 +991,7 @@ function notes(slug){
 }
 function notesPanel(slug,limit){
   var ns=notes(slug), show=limit?ns.slice(0,limit):slicePg("note",ns,PER.note);
-  return '<section class="panel'+(limit?' grow':'')+'" aria-label="提醒">'
+  return '<section class="panel grow" aria-label="提醒">'
     +'<div class="ph"><h2>'+(slug?"這個頻道的提醒":"提醒")+'</h2>'
     +(limit&&ns.length>limit?'<button class="g" data-tab="inbox" style="margin-left:auto">看全部</button>'
       :(limit?'':'<span class="gap"></span>'+pager("note",ns.length,PER.note,"件")))+'</div>'
@@ -1123,15 +1141,11 @@ function chSide(c){
     +asksPanel(c.slug,3)+notesPanel(c.slug,3);
 }
 function chOver(c){
-  return '<div class="c3">'
-    +'<section class="panel pane'+(view.pane===0?" on":"")+'">'+chStages(c)+'</section>'
-    +'<section class="panel pane'+(view.pane===1?" on":"")+'">'+chGrow(c)+'</section>'
-    +'<div class="pane side'+(view.pane===2?" on":"")+'" style="width:auto">'+chSide(c)+'</div>'
-    +'</div>'
-    +'<div class="panes"><button class="g" data-pane="-1"'+(view.pane<=0?" disabled":"")
-    +' aria-label="上一欄">‹</button><span>'+["本週進度與產線","成長","花費與等你"][view.pane]
-    +'（'+(view.pane+1)+' / 3）</span><button class="g" data-pane="1"'
-    +(view.pane>=2?" disabled":"")+' aria-label="下一欄">›</button></div>';
+  return paneWrap("c3",[
+    {label:"本週進度與產線", html:'<section class="panel grow">'+chStages(c)+'</section>'},
+    {label:"成長", html:'<section class="panel grow">'+chGrow(c)+'</section>'},
+    {label:"花費與等你", html:chSide(c)}
+  ]);
 }
 function poolBlocked(slug,p){
   var v=view.poolOpt[slug+":"+p.tc];
@@ -1228,8 +1242,10 @@ function channelPage(){
 
 /* ---------- 等你（全頁）與成本（全頁） ---------- */
 function inboxPage(){
-  return '<div class="wrap"><div class="main">'+asksPanel("",0)+
-    '<aside class="side">'+notesPanel("",0)+'</aside></div></div>';
+  return '<div class="wrap">'+paneWrap("main",[
+    {label:"等你決定", html:asksPanel("",0)},
+    {label:"提醒", html:notesPanel("",0), side:true}
+  ])+'</div>';
 }
 function costPage(){
   var r=snap.resources||{}, c=(r.cost||{}), cash=(r.cash||{}), q=(r.quota||{}), gem=(r.gemini||{});
@@ -1249,8 +1265,8 @@ function costPage(){
           "級別 "+esc(q.band||"—")+"・撞頂會排隊不停工")
     +tile("非片（共用）",(c.non_video==null?'<span class="dim">量不到</span>'
           :"US$"+fmt(c.non_video)),"選題、週報這類")
-    +'</div><div class="main">'
-    +'<section class="panel"><div class="ph"><h2>每個頻道花多少</h2>'
+    +'</div>'+paneWrap("main",[{label:"每個頻道花多少", html:
+     '<section class="panel grow"><div class="ph"><h2>每個頻道花多少</h2>'
     +'<span class="dim">現金是真的付出去的錢</span></div>'
     +'<div class="pb"><div class="rows">'+(byc.map(function(x){
       var v=c.by_channel[x], cc=ch(x);
@@ -1260,15 +1276,16 @@ function costPage(){
         +'<span class="num">US$'+fmt(v.cash)+'</span>'
         +'<span class="dim">顯卡 '+fmt(v.gpu_min)+' 分</span></div>';
     }).join("")||'<div class="dim">還沒有分頻道的帳。</div>')+'</div>'
-    +'<div class="dim">'+esc(plain(c.why||""))+'</div></div></section>'
-    +'<aside class="side"><section class="panel grow"><div class="ph"><h2>看起來像 0，其實是不計</h2></div>'
+    +'<div class="dim">'+esc(plain(c.why||""))+'</div></div></section>'},
+    {label:"看起來像 0，其實是不計", side:true, html:
+     '<section class="panel grow"><div class="ph"><h2>看起來像 0，其實是不計</h2></div>'
     +'<div class="pb">'+((c.not_counted||[]).map(function(x){
       return '<div class="note"><u style="background:var(--series2)"></u><div>'
         +'<span style="font-size:13px">'+esc(plain(x))+'</span></div></div>';
     }).join("")||'<div class="dim">沒有不計現金的項目。</div>')
     +'<div class="dim" style="margin-top:auto">出圖額度今日 '
     +fmt((gem.images||{}).today||0)+' 張・撞頂 '+fmt(gem.quota_hits||0)+' 次</div>'
-    +'</div></section></aside></div></div>';
+    +'</div></section>'}])+'</div>';
 }
 
 /* ---------- 抽屜＝單支片（不換頁；從總覽、頻道頁、等你三處都能開） ---------- */
