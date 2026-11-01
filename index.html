@@ -165,7 +165,8 @@ h3{font-size:14px;font-weight:700;margin:0}
 .pane>.panel.grow{flex:1}
 .pside{flex:none;width:340px}
 .panes{display:none}
-.stg{flex:1;min-height:0;display:flex;flex-direction:column;gap:4px;justify-content:space-between}
+/* ER-165①：七段不平分高度——沒片的段縮成一行（.bx 的 min-height），有片的段照片卡數撐開 */
+.stg{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;justify-content:flex-start}
 .stg .r{display:flex;gap:10px;align-items:flex-start}
 .stg .r>.lb{flex:none;width:52px;display:flex;align-items:center;gap:7px;padding-top:5px;
   font-size:12px;color:var(--dim2)}
@@ -600,6 +601,14 @@ function plain(s){            // 洗掉反引號段（都是檔案路徑）、�
     .replace(/[（(]\s*[）)]/g,"").replace(/／{2,}/g,"／").replace(/\s{2,}/g," ")
     .replace(/^[\s、，。：；／]+|[\s、，。：；／]+$/g,"");
 }
+/* ER-165③：預定公開日過了還沒公開，就不要再報那個過期日期（片卡、抽屜、總表共用這一支）。
+   st＝那支片現在的白話狀態，已經寫著「等你放行」的地方就不重複講一次。 */
+function pubNote(b,st){
+  var d=(b&&b.target_publish)||"";
+  if(!d) return "";
+  if(d>=today()) return "預定 "+md(d)+" 公開";
+  return st==="等你放行"?"":"等你放行就公開";
+}
 function dayDiff(a,b){
   var x=Date.parse(String(a||"").replace(" ","T")), y=Date.parse(String(b||"").replace(" ","T"));
   return (x&&y)?Math.round((y-x)/86400000):null;
@@ -750,6 +759,16 @@ function stateText(){
 function inbox(slug){
   return ((snap&&snap.inbox)||[]).filter(function(r){ return !slug||r.channel===slug; });
 }
+/* ER-165④：「等你」不是全部都叫放行——決策卡（kind=decide）才是放行，其他（設相關影片這種
+   老闆自己到後台動手的）分開數、分開講。主選單與橫幅的徽章一律用 all（等你的事總件數）。 */
+function inboxSplit(slug){
+  var rows=inbox(slug), rel=rows.filter(function(r){ return r.kind!=="decide"; });
+  return {all:rows.length, rel:rel.length, ask:rows.length-rel.length};
+}
+function inboxWord(slug){
+  var s=inboxSplit(slug);
+  return [s.ask?s.ask+" 支片等你放行":"", s.rel?s.rel+" 件小事":""].filter(Boolean).join("・");
+}
 function menuBtn(t){
   var n=inbox().length;
   return '<button data-tab="'+t[0]+'" aria-selected="'+(view.tab===t[0])+'">'+t[1]
@@ -892,7 +911,8 @@ function nextPub(slug){
     var d=b.target_publish||"";
     if(d&&d>=t&&(!out||d<out)) out=d;
   });
-  return out?md(out):"未排";
+  /* ER-165③：都沒有未來的日子＝沒有排程；有片停在放行關卡就講「等你放行」，不報過期日 */
+  return out?md(out):(((ch(slug)||{}).waiting)?"等你放行":"未排");
 }
 function chRow(c){
   var a=anaOf(c.slug)||{}, l=a.live||{}, k=c.kpi||{};
@@ -1074,8 +1094,7 @@ function films(c){
 }
 function filmBtn(f,c){
   var th=((f.card&&f.card.thumbs)||[])[0];
-  var meta=[f.state.zh, f.b.target_publish?"預定 "+md(f.b.target_publish)+" 公開":"",
-            f.state.why].filter(Boolean).join("・");
+  var meta=[f.state.zh, pubNote(f.b,f.state.zh), f.state.why].filter(Boolean).join("・");
   return '<button class="film'+(f.wait?" w":"")+'" data-film="'+esc(c.slug+"|"+f.id)+'">'
     +(th?'<img class="th" src="'+esc(th.src)+'" alt="縮圖">':'<span class="th">無圖</span>')
     +'<span style="min-width:0;display:flex;flex-direction:column">'
@@ -1190,8 +1209,9 @@ function chPool(c){
 }
 function chAll(c){
   var fs=films(c).map(function(f){
-    return {k:c.slug+"|"+f.id, title:f.title, note:f.state.zh+(f.b.target_publish
-            ?"・預定 "+md(f.b.target_publish)+" 公開":""), views:null, date:""};
+    var p=pubNote(f.b,f.state.zh);
+    return {k:c.slug+"|"+f.id, title:f.title, note:f.state.zh+(p?"・"+p:""),
+            views:null, date:""};
   });
   var ps=pubVideos(c).map(function(r){
     return {k:c.slug+"|v:"+r.vid, title:r.title, note:(r.short?"Shorts":"長片")+"・"
@@ -1350,7 +1370,7 @@ function dwFilm(f){
   var busy=card&&!!view.busy[card.card];
   var w=card?dayDiff(card.date,at):null;
   var head=dwHead(c.name+" › "+b.build, filmTitle(c,b),
-    [card?"長片":"", b.target_publish?"預定 "+md(b.target_publish)+" 公開":"",
+    [card?"長片":"", pubNote(b,""),
      card&&card.date?md(card.date)+" 做好":"", (w!=null&&w>0?"等了 "+w+" 天":"")]
       .filter(Boolean).join("・"));
   var body='<div class="dwb">';
