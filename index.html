@@ -348,8 +348,8 @@ var CHTABS=[["over","概況"],["pool","選題池"],["all","所有片"],["cost","
 var DEPT_ZH={"研究":"選題","腳本":"腳本","配音":"配音","視覺":"畫面","剪輯":"合成",
              "品檢發布":"審片","CEO室":"待放行"};
 /* 一頁幾件：桌機／手機各一組（手機不是縮小而是換頁）。總表超過 10 個頻道就分頁。 */
-var PER={ch:10, ask:6, note:6, vid:8, pool:6};
-var PER_M={ch:6, ask:3, note:4, vid:5, pool:4};
+var PER={ch:10, ask:6, note:6, vid:8, pool:6, cost:8};
+var PER_M={ch:6, ask:3, note:4, vid:5, pool:4, cost:3};
 function mobile(){ return window.innerWidth<=820; }
 function per(k){ return (mobile()?PER_M:PER)[k]; }
 
@@ -1207,11 +1207,11 @@ function chCost(c){
     return {t:v.title||v.tc, c:(v.cost||{}).cash, q:(v.cost||{}).llm_equiv,
             g:(v.cost||{}).gpu_min};
   }));
-  var show=slicePg("vid",rows,per("vid"));
+  var show=slicePg("cost",rows,per("cost"));
   return '<div class="main"><section class="panel" aria-label="成本明細">'
     +'<div class="ph"><h2>成本明細</h2><span class="dim">現金＝真的付出去的錢；'
     +'額度＝訂閱等值，不是現金</span><span class="gap"></span>'
-    +pager("vid",rows.length,per("vid"),"支")+'</div>'
+    +pager("cost",rows.length,per("cost"),"支")+'</div>'
     +'<div class="pb"><div class="t3">'
     +'<div><span class="dim">本週現金</span><b>'+(k.cash_week==null?"—":"US$"+fmt(k.cash_week))+'</b></div>'
     +'<div><span class="dim">每片現金</span><b>'
