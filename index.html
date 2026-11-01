@@ -165,7 +165,7 @@ h3{font-size:14px;font-weight:700;margin:0}
 .pane>.panel.grow{flex:1}
 .pside{flex:none;width:340px}
 .panes{display:none}
-.stg{flex:1;min-height:0;display:flex;flex-direction:column;gap:4px}
+.stg{flex:1;min-height:0;display:flex;flex-direction:column;gap:4px;justify-content:space-between}
 .stg .r{display:flex;gap:10px;align-items:flex-start}
 .stg .r>.lb{flex:none;width:52px;display:flex;align-items:center;gap:7px;padding-top:5px;
   font-size:12px;color:var(--dim2)}
@@ -559,11 +559,11 @@ function views7(key,slug){
   }
   return got?t:null;
 }
-function reportThrough(){                        // 報表到哪天（多台取最舊的那天，才不會高估）
+function reportThrough(){     // 報表到哪天（有資料的台取最舊的那天，才不會高估；沒資料的不算）
   var cs=anaChs(), out="";
   for(var i=0;i<cs.length;i++){
     var d=cs[i].report_through||"";
-    if(!d) return "";
+    if(!d) continue;
     if(!out||d<out) out=d;
   }
   return out;
@@ -818,8 +818,8 @@ function mSubs(){
   var pct=subs==null?null:Math.min(100,subs/ms*100);
   return '<div class="card"><div class="col"><span class="lab">訂閱</span>'
     +'<span class="big">'+(subs==null?'<span class="dim">量不到</span>':fmt(subs))
-    +'<span class="dim" style="font-size:13px"> 本週 '
-    +(dl==null?"量不到":((dl>=0?"＋":"－")+fmt(Math.abs(dl))))+'</span></span></div>'
+    +(dl==null?'':'<span class="dim" style="font-size:13px">　本週 '
+      +((dl>=0?"＋":"－")+fmt(Math.abs(dl)))+'</span>')+'</span></div>'
     +'<div class="xtra"><span style="display:flex">'+bc(pct)+'</span>'
     +'<span class="dim lab2" style="text-align:right">到 '+fmt(ms)+' 還差 '
     +(subs==null?"？":fmt(ms-subs))+'</span></div></div>';
@@ -879,14 +879,19 @@ function track(c){
     }).join("")+'</span>';
 }
 function nextPub(slug){
-  var cells=((snap.calendar||{}).cells)||[], t=today();
+  var cells=((snap.calendar||{}).cells)||[], t=today(), out="";
   for(var i=0;i<cells.length;i++){
     var x=cells[i];
     if(x.d<t) continue;
     if((x.items||[]).some(function(it){ return it.channel===slug; }))
       return md(x.d)+" 週"+(x.wd||"");
   }
-  return "未排";
+  /* 行事曆只排到本週；本週沒有就看在線片自己認領的出片日 */
+  (((ch(slug)||{}).builds)||[]).forEach(function(b){
+    var d=b.target_publish||"";
+    if(d&&d>=t&&(!out||d<out)) out=d;
+  });
+  return out?md(out):"未排";
 }
 function chRow(c){
   var a=anaOf(c.slug)||{}, l=a.live||{}, k=c.kpi||{};
@@ -903,7 +908,7 @@ function chRow(c){
     +'<span class="pill '+pill[0]+'">'+pill[1]+'</span></span>'
     +'<span>'+dots(c.done_week||0,c.waiting||0,c.weekly_target)+'</span>'
     +'<span class="c-track">'+track(c)+'</span>'
-    +'<span class="v7"><span class="num">'+(v7==null?"—":fmt(v7))+'</span>'
+    +'<span class="v7"><span class="num">'+((v7==null||c.opened===false)?"—":fmt(v7))+'</span>'
     +spark(d,c.color)+delta(v7,p7)+'</span>'
     +'<span class="c-subs num" style="font-weight:600">'+(l.subs==null?"—":fmt(l.subs))+'</span>'
     +'<span class="c-cost cost">'+bc(k.cash_week!=null&&cap?k.cash_week/cap*100:null,"g")
@@ -982,7 +987,8 @@ function notes(slug){
                     "報表固定晚 2～3 天，不是掉量"]);
   var gpu=q.filter(function(x){ return x.kind==="gpu"; }).length;
   if(gpu) ns.push(["var(--accent)",gpu+" 支在等顯卡時窗",
-                   (r.gpu||{}).next_open?"下次開 "+(r.gpu||{}).next_open:"時窗現在沒開"]);
+                   (r.gpu||{}).next_open?"下次開 "+md(String((r.gpu||{}).next_open).slice(0,10))
+                     +" "+hhmm((r.gpu||{}).next_open):"時窗現在沒開"]);
   var left=(slug?[ch(slug)].filter(Boolean):openedChs()).filter(function(c){ return c.opened!==false; })
     .reduce(function(a,c){ return a+Math.max(0,(Number(c.weekly_target)||0)-(c.done_week||0)); },0);
   if(left) ns.push(["var(--warn)","本週還有 "+left+" 支要完成","做好的片要你放行才算完成"]);
@@ -1331,7 +1337,7 @@ function dwSteps(c,b){
   return '<section class="sec"><h3>走到哪</h3><div class="steps">'+ds.map(function(d,i){
     return '<div><i class="'+(i<now?"on":(i===now?"now":""))+'"></i>'
       +'<em>'+esc(DEPT_ZH[d]||d)+'</em><span>'
-      +esc(i===now?(st.zh||"在這"):(last[d]?md(last[d]):""))+'</span></div>';
+      +esc(i===now?(st.zh||"在這"):(last[d]?md(String(last[d]).slice(0,10)):""))+'</span></div>';
   }).join("")+'</div>'
     +(st.why?'<div class="dim">'+esc(st.why)+'</div>':'')+'</section>';
 }
