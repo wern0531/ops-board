@@ -1185,12 +1185,17 @@ function chGrow(c){
 }
 function chSide(c){
   var k=c.kpi||{}, cap=((snap.resources||{}).cash||{}).cap;
+  /* ER-166：這個頻道的產線這週吃掉多少訂閱額度（只算站） */
+  var pw=(((snap.resources||{}).quota||{}).production||{}).week||{};
+  var mine=(pw.by_channel||{})[c.slug]||null;
   return '<section class="panel" aria-label="本週花費"><div class="ph"><h2>本週花費</h2></div>'
     +'<div class="pb"><div style="display:flex;align-items:baseline;gap:8px">'
     +'<span class="big">'+(k.cash_week==null?'<span class="dim">量不到</span>':"US$"+fmt(k.cash_week))
     +'</span><span class="dim">現金・每片上限 US$1</span></div>'
     +'<div style="display:flex">'+bc(k.cash_week!=null&&cap?k.cash_week/cap*100:null,"g")+'</div>'
-    +'<div class="dim">AI 訂閱額度全廠共用，在「成本」看</div></div></section>'
+    +'<div class="dim">產線訂閱額度本週 '
+    +(mine?"US$"+fmt(mine.total)+"・"+fmt(mine.calls)+" 次呼叫":"這週還沒用到")
+    +'，明細在「成本」</div></div></section>'
     +asksPanel(c.slug,mobile()?1:2)+notesPanel(c.slug,2);
 }
 function chOver(c){
@@ -1310,17 +1315,41 @@ function costPage(){
       +'<span class="dim">'+n+'</span></div>';
   };
   var byc=Object.keys(c.by_channel||{});
+  /* ER-166：訂閱剩餘＝真實值；產線用量＝只算站，按頻道／站拆開 */
+  var pw=(q.production||{}).week||{}, pnp=(q.production||{}).not_prod||{},
+      pv=(q.production||{}).per_video||{}, rem=qRemain(q);
+  var lightCls=q.light==="紅"?"bad":(q.light==="黃"?"warn":(q.light==="綠"?"ok":"dim"));
   return '<div class="wrap"><div class="g4">'
-    +tile("本週現金",(cash.week==null?'<span class="dim">量不到</span>':"US$"+fmt(cash.week)),
-          cash.cap?"上限 US$"+fmt(cash.cap)+"／週":"沒有上限可比")
-    +tile("每片現金",(k.per_video_cash_usd==null?'<span class="dim">量不到</span>'
-          :"US$"+fmt(k.per_video_cash_usd)),"每片上限 US$1")
-    +tile("AI 訂閱額度",(q.pct==null?'<span class="dim">量不到</span>':q.pct+"%"),
-          "級別 "+esc(q.band||"—")+"・撞頂會排隊不停工")
-    +tile("非片（共用）",(c.non_video==null?'<span class="dim">量不到</span>'
-          :"US$"+fmt(c.non_video)),"選題、週報這類")
-    +'</div>'+paneWrap("main",[{label:"每個頻道花多少", html:
-     '<section class="panel grow"><div class="ph"><h2>每個頻道花多少</h2>'
+    +tile("訂閱剩餘",(rem==null?'<span class="dim">未知</span>':rem+"%"),
+          esc(qAge(q))+(q.reset_text?"・重設 "+esc(q.reset_text):""))
+    +tile("產線本週用掉",(pw.total==null?'<span class="dim">量不到</span>':"US$"+fmt(pw.total)),
+          fmt(pw.calls||0)+" 次呼叫・只算站，不含討論與施工")
+    +tile("每片平均",(pv.usd==null?'<span class="dim">量不到</span>':"US$"+fmt(pv.usd)),
+          (q.per_video_pct!=null?"≈ 週額度 "+q.per_video_pct+"%":"換算率還算不出來"))
+    +tile("會不會停擺",'<span class="'+lightCls+'">'+esc(q.light||"未知")+'</span>',
+          esc(plain(q.text||"")).slice(0,60))
+    +'</div>'+paneWrap("main",[{label:"產線用掉多少額度", html:
+     '<section class="panel grow"><div class="ph"><h2>產線用掉多少額度</h2>'
+    +'<span class="dim">本週・按頻道與站・真實成本</span></div>'
+    +'<div class="pb"><div class="rows">'+(Object.keys(pw.by_channel||{}).map(function(x){
+      var v=pw.by_channel[x], cc=ch(x);
+      return '<div class="row"><span class="chip" style="background:'
+        +esc(cc?cc.color:"var(--series2)")+'"></span>'
+        +'<span style="flex:1">'+esc(cc?cc.name:x)+'</span>'
+        +'<span class="num">US$'+fmt(v.total)+'</span>'
+        +'<span class="dim">'+fmt(v.calls)+' 次</span></div>'
+        +Object.keys(v.by_station||{}).sort(function(a,b){
+            return v.by_station[b].usd-v.by_station[a].usd; }).map(function(s){
+          return '<div class="row" style="padding-left:22px"><span class="dim" style="flex:1">'
+            +esc(s)+'</span><span class="num dim">US$'+fmt(v.by_station[s].usd)+'</span>'
+            +'<span class="dim">'+fmt(v.by_station[s].calls)+' 次</span></div>';
+        }).join("");
+    }).join("")||'<div class="dim">這週產線還沒用到訂閱額度。</div>')+'</div>'
+    +'<div class="dim" style="margin-top:auto">不算進上面的：Engineer 派工與試跑 US$'
+    +fmt(pnp.total||0)+'・'+fmt(pnp.calls||0)+' 次｜'+esc(plain(q.how||q.why||""))+'</div>'
+    +'</div></section>'},
+    {label:"每個頻道花多少現金", html:
+     '<section class="panel grow"><div class="ph"><h2>每個頻道花多少現金</h2>'
     +'<span class="dim">帳本累計・現金是真的付出去的錢</span></div>'
     +'<div class="pb"><div class="rows">'+(byc.map(function(x){
       var v=c.by_channel[x], cc=ch(x);
@@ -1330,6 +1359,10 @@ function costPage(){
         +'<span class="num">US$'+fmt(v.cash)+'</span>'
         +'<span class="dim">顯卡 '+fmt(v.gpu_min)+' 分</span></div>';
     }).join("")||'<div class="dim">還沒有分頻道的帳。</div>')+'</div>'
+    +'<div class="dim" style="margin-top:auto">本週現金 US$'+fmt(cash.week||0)
+    +(cash.cap?'／上限 US$'+fmt(cash.cap):'')+'・每片 US$'
+    +(k.per_video_cash_usd==null?"—":fmt(k.per_video_cash_usd))+'（上限 US$1）・非片（共用）US$'
+    +(c.non_video==null?"—":fmt(c.non_video))+'</div>'
     +'</div></section>'},
     {label:"看起來像 0，其實是不計", side:true, html:
      '<section class="panel grow"><div class="ph"><h2>看起來像 0，其實是不計</h2></div>'
