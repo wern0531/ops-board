@@ -1667,7 +1667,13 @@ function sendNote(card){
 function decide(card,verdict,note){
   var r=cardOf(card);
   if(!r){ closeFilm(); toast("這張卡已被處理","bad"); return; }
-  var action={kind:"decide",channel:r.channel,build:r.build||"",card:card,verdict:verdict,note:note};
+  var slug=r.channel;
+  if(r.ambiguous){
+    var s=document.getElementById("amb");
+    slug=s?s.value:"";
+    if(!slug){ view.hint="這張卡認不出頻道，請先選一個。"; render(); return; }
+  }
+  var action={kind:"decide",channel:slug,build:r.build||"",card:card,verdict:verdict,note:note};
   submit(card,action,(r.build||"這張卡")+" 裁「"+verdict+"」",function(){ decide(card,verdict,note); });
 }
 function relDone(card){
