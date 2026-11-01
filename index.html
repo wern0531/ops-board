@@ -107,6 +107,7 @@ h3{font-size:14px;font-weight:700;margin:0}
 .chr:hover{background:var(--soft)}
 .chr.warn{background:var(--roww)}
 .chr .nm{display:flex;align-items:center;gap:9px;min-width:0}
+.chr .nmt{min-width:0;display:flex;flex-direction:column}
 .chr .nm b{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chr.off{color:var(--dim2)}
 .sub{display:none}
@@ -298,9 +299,8 @@ pre{white-space:pre-wrap;word-break:break-word;font:13px/1.6 ui-monospace,"Noto 
   .g4 .big{font-size:17px}
   .g4 .lab{font-size:11px}
   .thead{display:none}
-  .chr{grid-template-columns:10px minmax(0,1fr) auto 52px 10px;height:52px;padding:0 14px;gap:9px}
+  .chr{grid-template-columns:minmax(0,1fr) auto 56px 10px;height:52px;padding:0 14px;gap:9px}
   .c-track,.c-subs,.c-cost,.c-next{display:none}
-  .chr .nm{gap:8px;flex-direction:column;align-items:flex-start}
   .chr .nm b{font-size:14px;max-width:100%}
   .chr .pill{display:none}
   .sub{display:block;font-size:11px;color:var(--dim2);max-width:100%;overflow:hidden;
@@ -894,10 +894,10 @@ function chRow(c){
   return '<button class="chr'+(c.waiting||c.stuck?" warn":"")+(c.opened===false?" off":"")
     +'" data-ch="'+esc(c.slug)+'">'
     +'<span class="nm"><span class="chip" style="border-radius:50%;background:'+esc(c.color)+'"></span>'
-    +'<b class="ell">'+esc(c.name)+'</b>'
-    +'<span class="pill '+pill[0]+'">'+pill[1]+'</span>'
+    +'<span class="nmt"><b class="ell">'+esc(c.name)+'</b>'
     +'<span class="sub">'+esc(pill[1]+"・本週 "+fmt(c.done_week||0)+"／"
       +(c.weekly_target||"？")+" 支")+'</span></span>'
+    +'<span class="pill '+pill[0]+'">'+pill[1]+'</span></span>'
     +'<span>'+dots(c.done_week||0,c.waiting||0,c.weekly_target)+'</span>'
     +'<span class="c-track">'+track(c)+'</span>'
     +'<span class="v7"><span class="num">'+(v7==null?"—":fmt(v7))+'</span>'
