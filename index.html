@@ -307,8 +307,10 @@ pre{white-space:pre-wrap;word-break:break-word;font:13px/1.6 ui-monospace,"Noto 
   .v7 .spark{display:none}
   .v7 .num{width:auto;font-size:13px}
   .c3{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr)}
+  .main{flex-direction:column}
   .pane{display:none}
   .pane.on{display:flex}
+  .pside{width:auto;flex:1}
   .panes{display:flex;flex:none;align-items:center;justify-content:center;gap:8px;font-size:12px;
     color:var(--dim2)}
   .dw{width:100%;border-left:0}
@@ -511,7 +513,6 @@ function ico(name){
 function lockScroll(on){ if(document.body) document.body.className=on?"lock":""; }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
-function dimv(v,txt){ return (v===null||v===undefined||v==="")?'<span class="dim">'+(txt||"量不到")+'</span>':null; }
 function fmt(n){
   if(n===null||n===undefined||n==="") return "—";
   var x=Math.round(Number(n)*10)/10;
