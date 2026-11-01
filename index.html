@@ -1467,14 +1467,30 @@ function drawer(){
 function cardModal(){
   var id=view.card, r=id?cardOf(id):null;
   if(!r) return "";
-  return '<div class="doc" id="mbg"><div role="dialog" aria-modal="true" aria-label="待辦">'
-    +'<div class="dim">'+esc(askMeta(r))+'<button class="g" id="mx" style="margin-left:auto" '
-    +'aria-label="關閉">'+ico("x")+'</button></div>'
-    +'<h2>'+esc(plain(r.title))+'</h2>'
-    +'<div style="font-size:13px">'+esc(plain(r.note||""))+'</div>'
+  var head='<div class="doc" id="mbg"><div role="dialog" aria-modal="true" aria-label="待辦">'
+    +'<div class="dim" style="display:flex">'+esc(askMeta(r))
+    +'<button class="g" id="mx" style="margin-left:auto" aria-label="關閉">'+ico("x")+'</button></div>'
+    +'<h2>'+esc(askTitle(r))+'</h2>'
+    +'<div style="font-size:13px">'+esc(plain(r.note||"").slice(0,200))+'</div>';
+  if(r.kind==="related")
+    return head+'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      +'<a class="btn" href="'+esc(r.url||"#")+'" target="_blank" rel="noopener">到後台設定 ↗</a>'
+      +'<button class="p" data-rel="'+esc(r.card)+'">已設好</button></div></div></div>';
+  /* 認不出是哪個頻道哪支片的決策卡：還是能裁，但要先指定頻道（這條路本來就有） */
+  return head
+    +(r.ambiguous?'<div class="dim">這張卡認不出是哪個頻道的，請先選一個。</div>'
+      +'<select id="amb">'+(snap.channels||[]).map(function(x){
+        return '<option value="'+esc(x.slug)+'">'+esc(x.name)+'</option>'; }).join("")+'</select>':'')
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
-    +'<a class="btn" href="'+esc(r.url||"#")+'" target="_blank" rel="noopener">到後台設定 ↗</a>'
-    +'<button class="p" data-rel="'+esc(r.card)+'">已設好</button></div></div></div>';
+    +'<button data-act="'+esc(r.card)+'|不動">再等等</button>'
+    +'<button data-act="'+esc(r.card)+'|改">要改…</button>'
+    +'<button class="p" data-act="'+esc(r.card)+'|准">'
+    +(view.confirm===r.card?"確定？再按一次":"准")+'</button></div>'
+    +(view.noteOpen===r.card?'<textarea id="note" placeholder="要改什麼？一句話">'
+      +esc(view.notes[r.card]||"")+'</textarea>'
+      +(view.hint?'<div class="hint">'+esc(view.hint)+'</div>':"")
+      +'<div><button class="p" data-send="'+esc(r.card)+'">送出「改」</button></div>':"")
+    +'</div></div>';
 }
 function poolModal(){
   var a=view.poolAsk;
