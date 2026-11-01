@@ -76,12 +76,13 @@ h2 .c{color:var(--dim);font-size:12px;font-weight:400;letter-spacing:0}
 .k-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--dim)}
 .k-title{font-size:15px;font-weight:600;margin:4px 0 2px;line-height:1.45;overflow-wrap:anywhere}
 .k-note{font-size:13px;color:var(--dim);overflow-wrap:anywhere}
-.depts{display:flex;gap:4px;flex-wrap:wrap;margin:8px 0 2px}
-.dept{flex:1 1 40px;min-width:40px;text-align:center;font-size:10px;padding:4px 1px;border-radius:6px;
-  background:var(--soft);border:1px solid var(--line);color:var(--dim);overflow:hidden;white-space:nowrap}
-.dept.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
-.dept.wait{border-color:var(--warn);color:var(--warn);font-weight:600}
-.dept.stuck{border-color:var(--bad);color:var(--bad);font-weight:600}
+/* ER-142 本週行事曆：桌機七格並排，手機一天一列（精簡版） */
+.cal7{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:8px 0 2px}
+.cal{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:6px;min-height:58px}
+.cal.now{border-color:var(--accent);background:var(--accent-soft)}
+.cal .k-note{margin-top:4px}
+@media (max-width:820px){.cal7,.cal7.mini{grid-template-columns:1fr}
+  .cal{min-height:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}}
 button,.btn{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--card);
   color:var(--ink);padding:7px 12px;min-height:34px;display:inline-flex;align-items:center;gap:6px;
   text-decoration:none;white-space:nowrap}
@@ -142,18 +143,66 @@ pre{white-space:pre-wrap;word-break:break-word;font:13px/1.65 ui-monospace,"Noto
   border-radius:50%;animation:sp .7s linear infinite;display:inline-block}
 @keyframes sp{to{transform:rotate(360deg)}}
 .busy{opacity:.5}
-.mob{display:none}
+/* ER-162 首頁：圖表優先的營運總覽（取代舊的六格 KPI 與「桌機一套、手機一套」兩份版面）。 */
+.hero{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;margin:0 0 12px}
+.hero h1{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.m4{display:grid;gap:12px;grid-template-columns:repeat(4,minmax(0,1fr));margin:0 0 12px}
+.m4 .box{margin:0;display:flex;flex-direction:column;gap:8px}
+.big{font-size:30px;font-weight:700;line-height:1;letter-spacing:-.02em}
+.seg{display:grid;gap:4px}
+.seg i{height:10px;border-radius:3px;background:var(--soft);border:1px solid var(--line);display:block}
+.seg i.on{background:var(--accent);border-color:var(--accent)}
+.seg i.wait{border-color:var(--accent);
+  background:repeating-linear-gradient(135deg,var(--accent) 0 4px,var(--accent-soft) 4px 8px)}
+.two{display:grid;gap:12px;grid-template-columns:minmax(0,3fr) minmax(0,2fr);margin:0 0 12px}
+.two .box{margin:0}
+.ask{display:flex;flex-wrap:wrap;gap:12px;align-items:center;border:1px solid var(--line);
+  border-radius:10px;padding:10px;margin-top:10px}
+.thumb{width:112px;height:63px;flex:none;border-radius:8px;background:var(--soft);
+  border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px;color:var(--dim);font-size:11px}
+.thumb b{font-size:13px;color:var(--ink)}
+.note{display:flex;gap:10px;align-items:flex-start;margin-top:10px}
+.note u{flex:none;margin-top:6px;width:8px;height:8px;border-radius:50%;text-decoration:none}
+.chs{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(350px,1fr))}
+.st3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+.st3>div{background:var(--soft);border-radius:8px;padding:8px 10px}
+.st3 b{display:block;font-size:18px;font-weight:600}
+.stg{display:grid;gap:4px;margin:6px 0 2px}
+.stg>div{min-width:0;display:flex;flex-direction:column;gap:5px}
+.stg i{height:6px;border-radius:3px;background:var(--soft);display:block}
+.stg i.on{background:var(--accent)}
+.stg em{font-size:11px;color:var(--dim);font-style:normal;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.stg b{font-size:11px;font-weight:600;align-self:flex-start;padding:1px 5px;border-radius:6px;
+  background:var(--accent);color:var(--accent-ink);white-space:nowrap}
+.bars{display:flex;align-items:flex-end;gap:2px;height:92px;border-bottom:1px solid var(--line)}
+.bars i{flex:1 1 0;display:block;min-height:2px;border-radius:2px 2px 0 0;background:var(--accent);
+  opacity:.45}
+.bars i.pub{opacity:1}
+.bars i.none{opacity:1;height:10px;
+  background:repeating-linear-gradient(135deg,var(--line) 0 3px,transparent 3px 6px)}
+.vrow{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr) 74px;gap:12px;
+  align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.vrow .num{text-align:right;font-weight:600}
+.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m4 .spark{width:100%;height:38px}
 .nav{display:none;position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--card);
   border-top:1px solid var(--line);padding:4px}
 .nav button{flex:1;border:0;background:transparent;font-size:13px;min-height:44px;justify-content:center}
 .nav button[aria-selected=true]{color:var(--accent);font-weight:600}
 @media (max-width:820px){
   .desk{display:none!important}
-  .mob{display:block}
   .nav{display:flex}
   .page{padding:10px 12px 70px}
   .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
   .mid{grid-template-columns:minmax(0,1fr)}
+  .m4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .two,.chs{grid-template-columns:1fr}
+  .vrow{grid-template-columns:minmax(0,1fr) 66px}
+  .vrow .bc{grid-column:1/-1}
+  .thumb{width:88px;height:50px}
+  .stg em{white-space:normal;font-size:10px;line-height:1.25}
   .tabs{display:none}
   .bar{padding:9px 12px}
   .toasts{left:12px;right:12px;bottom:56px;max-width:none}
@@ -169,8 +218,11 @@ var cfg=null, tok=null, snap=null, ana=null, at="", anaAt="", timer=null;
 /* ER-140：view.card 是**卡號**（不是 snap.inbox 的索引——自動重讀後索引會指到別張卡）。
    notes＝使用者正在寫的「改」意見（重畫不掉）；busy＝已送出等落地的卡號；
    confirm＝「准」的第二段確認；toasts＝右下角提示（取代 alert／confirm）。 */
+/* ER-142：poolOpt＝卡池「擋下／解除」的樂觀覆蓋（按下就生效，不等 60 秒那輪快照）；
+   poolAsk＝擋下／解除的確認彈窗（不用原生 confirm）。 */
 var view={tab:"home", ch:"", vid:"", card:null, doc:null, err:"",
-          notes:{}, busy:{}, confirm:"", hint:"", noteOpen:"", toasts:[]};
+          notes:{}, busy:{}, confirm:"", hint:"", noteOpen:"", toasts:[],
+          poolOpt:{}, poolAsk:null};
 var toastSeq=0, deferred=false;
 var DESK=[["home","總覽"],["channels","頻道"],["scores","影片成績"],["line","產線"],["cost","成本"]];
 var MOB=[["home","首頁"],["inbox","等你"],["scores","成績"],["line","產線"]];
@@ -238,6 +290,13 @@ function fetchSnap(auto){                        // 兩列一次拿：current（
 }
 /* 重讀之後：開著的彈窗那張卡不在了就關掉並說一聲（絕不改成指到別張卡）。 */
 function afterSnap(auto){
+  /* 卡池：本機那一輪已經把擋下落地（快照跟樂觀值一致）→ 覆蓋清掉，回歸快照為準 */
+  (snap.channels||[]).forEach(function(c){
+    (c.pool||[]).forEach(function(p){
+      var k=c.slug+":"+p.tc;
+      if(view.poolOpt[k]!==undefined&&view.poolOpt[k]===!!p.blocked) delete view.poolOpt[k];
+    });
+  });
   if(view.card&&!cardOf(view.card)){
     var gone=view.card;
     view.card=null; view.confirm=""; view.hint=""; lockScroll(false);
@@ -360,10 +419,34 @@ function allVideos(){
 function vidOf(id){ return allVideos().filter(function(v){return v.video_id===id||v.tc===id;})[0]
   ||(((ana&&ana.channels)||[]).reduce(function(a,c){
        return a||(c.videos||[]).filter(function(v){return v.video_id===id||v.tc===id;})[0]||null; },null)); }
-function sumDaily(days){                         // 最近 N 天觀看（長片＋Shorts）
-  var t=0, got=false;
-  anaChs().forEach(function(c){ (c.daily||[]).slice(-days).forEach(function(d){
-    got=true; t+=(d.long||0)+(d.short||0); }); });
+/* ER-161：近 7 天觀看只算到報表完整那天，報表未到的日子是「未到」不是 0。
+   兩段加總都在後端算（board_server.window_sum），前端只加各頻道的數字；
+   任何一台算不出完整的 7 天就整個回 null（顯示「量不到」，不給假的漲跌）。 */
+function views7(key){
+  var cs=anaChs(), t=0, got=false;
+  for(var i=0;i<cs.length;i++){
+    var v=cs[i][key];
+    if(v==null) return null;
+    t+=v; got=true;
+  }
+  return got?t:null;
+}
+function reportThrough(){                        // 報表到哪天（多台取最舊的那天，才不會高估）
+  var cs=anaChs(), out="";
+  for(var i=0;i<cs.length;i++){
+    var d=cs[i].report_through||"";
+    if(!d) return "";
+    if(!out||d<out) out=d;
+  }
+  return out;
+}
+function totalViews(){                           // 累計觀看＝各台 Data API statistics.viewCount
+  var cs=anaChs(), t=0, got=false;
+  for(var i=0;i<cs.length;i++){
+    var v=(cs[i].live||{}).total_views;
+    if(v==null) continue;
+    t+=v; got=true;
+  }
   return got?t:null;
 }
 function latestSnap(v){                          // 一支片最後一格有資料的快照
@@ -532,39 +615,6 @@ function kpiTile(title,val,note,red,dl){
   return '<div class="kpi'+(red?" red":"")+'"><span class="t">'+esc(title)+'</span><b>'+val+'</b>'
     +(dl||"")+(note?'<div class="dim">'+note+'</div>':"")+'</div>';
 }
-function sum7(d,back){                           // d 的倒數第 back+7 ～ back 天加總
-  var xs=back?d.slice(-(back+7),-back):d.slice(-7);
-  return xs.length?xs.reduce(function(a,b){return a+(b||0);},0):null;
-}
-function tiles(){
-  var k=snap.kpi||{}, r=snap.resources||{};
-  var chs=view.ch?[ch(view.ch)].filter(Boolean):(snap.channels||[]);
-  var done=chs.reduce(function(a,c){return a+(c.done_week||0);},0);
-  var target=chs.reduce(function(a,c){return a+(Number(c.weekly_target)||0);},0);
-  var d=[]; anaChs().forEach(function(c){ (c.daily||[]).forEach(function(x,i){
-    d[i]=(d[i]||0)+(x.long||0)+(x.short||0); }); });
-  var vids=allVideos();
-  var avp=avgOf("avp"), r30=avgOf("ret30");
-  var cash=(r.cash||{}), q=(r.quota||{}), gem=(r.gemini||{});
-  var overCash=cash.week!=null&&cash.cap&&cash.week>cash.cap;
-  var overQ=q.pct!=null&&q.pct>100;
-  return '<div class="kpis">'
-    +kpiTile("本週產量",fmt(done)+' <span class="dim">／'+(target||"？")+' 片</span>',
-             meter(done,target||null,"沒有設週目標"))
-    +kpiTile("7 日觀看",fmt(sumDaily(7)),spark(d.slice(-14)),false,
-             delta(sum7(d,0),d.length>=14?sum7(d,7):null,"比前 7 日"))
-    +kpiTile("平均觀看比例",avp==null?'<span class="dim">量不到</span>':avp+"%",
-             spark(vids.map(function(v){var s=latestSnap(v);return s?s.avp:null;}).reverse()))
-    +kpiTile("30 秒留存",r30==null?'<span class="dim">量不到</span>':r30,
-             r30==null?'<span class="dim">校準帳還沒有這一欄</span>'
-                      :spark(vids.map(function(v){var s=latestSnap(v);return s?s.ret30:null;}).reverse()))
-    +kpiTile("外部現金本週",cash.week==null?'<span class="dim">量不到</span>':"US$"+fmt(cash.week),
-             meter(cash.week,cash.cap,"沒有上限可比"),overCash)
-    +kpiTile("訂閱用量",q.pct==null?'<span class="dim">量不到</span>':q.pct+"%",
-             meter(q.pct,100,"沒有百分比")+'<div class="dim">Gemini '
-             +(gem.turns==null?"量不到":fmt(gem.turns)+" 輪／撞頂 "+fmt(gem.quota_hits||0))+'</div>',overQ)
-    +'</div>';
-}
 function dailyChart(){
   var cs=anaChs();
   if(!cs.length) return '<div class="box"><h2>每日觀看</h2><div class="dim">'
@@ -585,27 +635,51 @@ function dailyChart(){
     +' 天・虛線＝公開日</span></h2>'+svgLines(labels,series,marks,260,md)+legend(series)
     +'<div class="dim">'+esc(cs[0].why||"")+'</div></div>';
 }
-function flowBox(){
-  var chs=view.ch?[ch(view.ch)].filter(Boolean):(snap.channels||[]);
-  var h='<div class="box"><h2>產線流<span class="c">色塊＝部門：藍有片・黃等你・紅卡住</span></h2>';
-  h+=chs.map(function(c){
-    var depts=(c.depts||[]).map(function(d){
-      var n=(c.by_dept||{})[d]||0;
-      var cls=n?" on":"";
-      return '<div class="dept'+cls+'" title="'+esc(d)+(n?"：在線 "+n+" 支":"：沒有片")+'">'
-        +esc(d.slice(0,2))+(n?"·"+n:"")+'</div>';
-    }).join("");
-    var tags=[];
-    if(c.waiting) tags.push('<span class="pill warn">等你 '+c.waiting+'</span>');
-    if(c.stuck) tags.push('<span class="pill bad">卡住 '+c.stuck+'</span>');
-    if(c.why) tags.push('<span class="pill bad">'+esc(c.why)+'</span>');
-    if(!tags.length) tags.push('<span class="pill ok">正常</span>');
-    return '<div class="row"><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
-      +'<span class="chip" style="background:'+esc(c.color)+'"></span><b>'+esc(c.name)+'</b>'
-      +'<span class="dim">在線 '+(c.active||0)+' 支</span>'+tags.join("")+'</div>'
-      +'<div class="depts">'+depts+'</div></div>';
-  }).join("")||'<div class="dim">沒有頻道。</div>';
-  return h+'</div>';
+/* ER-142：本週行事曆（七格）＋產線即時（正在跑／排隊中／下一支）。
+   取代舊的「產線流」部門色塊——老闆要的「哪支片在動、下一支是誰、誰在排隊」它一格都答不出來。 */
+function statePill(st){
+  var cls=st==="趕不上"?"bad":(st==="等老闆審"?"warn":(st==="未開工"?"":"ok"));
+  return '<span class="pill'+(cls?" "+cls:"")+'">'+esc(st)+'</span>';
+}
+function calBox(mini){
+  var cal=snap.calendar||{}, cells=cal.cells||[];
+  if(!cells.length) return '<div class="box"><h2>本週行事曆</h2><div class="dim">'
+    +esc(cal.why||"頻道還沒宣告出片日（ops/config.json 的 channels.items.<slug>.publish_days）")
+    +'</div></div>';
+  return '<div class="box"><h2>本週行事曆<span class="c">前置 '
+    +(cal.lead_days==null?"—":cal.lead_days)+' 天・出片日往前推就是開工日</span></h2>'
+    +'<div class="cal7'+(mini?" mini":"")+'">'+cells.map(function(x){
+      var items=(x.items||[]).filter(function(i){ return !view.ch||i.channel===view.ch; });
+      return '<div class="cal'+(x.today?" now":"")+'">'
+        +'<div class="dim">'+md(x.d)+' 週'+esc(x.wd)+(x.today?"・今天":"")+'</div>'
+        +(items.map(function(i){
+          return '<div class="k-note">'+(mini?"":esc(i.name)+'　')+esc(i.build||"還沒接片")
+            +' '+statePill(i.state)+'</div>';
+        }).join("")||'<div class="dim">不出片</div>')+'</div>';
+    }).join("")+'</div></div>';
+}
+function nowBox(){
+  var L=snap.line_now||{};
+  var mine=function(r){ return !view.ch||r.channel===view.ch; };
+  var run=(L.running||[]).filter(mine), q=(L.queue||[]).filter(mine), nx=(L.next||[]).filter(mine);
+  return '<div class="box"><h2>產線即時<span class="c">在動的／排隊的／下一支</span></h2>'
+    +'<div class="row"><span>正在跑</span>'
+    +(run.map(function(r){
+      return '<div class="dim"><b>'+esc(r.build)+'</b>（'+esc(r.target_publish||"沒認領出片日")
+        +'）・'+esc(r.name||r.station)+'・'
+        +(r.elapsed_min!=null?r.elapsed_min+" 分":"剛起")+(r.worker?"・"+esc(r.worker):"")+'</div>';
+    }).join("")||'<div class="dim">沒有站在跑。</div>')+'</div>'
+    +'<div class="row"><span>排隊中</span>'
+    +(q.map(function(r){
+      return '<div class="dim">'+esc(r.kind_zh||"")+' 第 '+(r.order||1)+'：<b>'+esc(r.build)
+        +'</b>・'+esc(r.name||r.station)+'・'+esc(r.why||"")+'</div>';
+    }).join("")||'<div class="dim">沒有人在排隊。</div>')+'</div>'
+    +'<div class="row"><span>下一支</span>'
+    +(nx.map(function(r){
+      return '<div class="dim">'+chName(r.channel)+'：'
+        +(r.action==="open"?"接 "+esc(r.tc):(r.action==="recheck"?"先派複查 "+esc(r.tc):"不接片"))
+        +'・'+esc(r.reason||"")+'</div>';
+    }).join("")||'<div class="dim">量不到。</div>')+'</div></div>';
 }
 function resBox(){
   var r=snap.resources||{}, g=(r.gpu||{}), e=(r.external||{}), c=(r.cost||{});
@@ -648,41 +722,270 @@ function scoreTable(limit){
   }).join("");
   return h+'</table></div></div>';
 }
-function home(){
-  return '<div class="page">'
-    /* 桌機：六格＋兩張圖＋成績表 */
-    +'<div class="desk">'+tiles()
-    +'<div class="mid">'+dailyChart()+'<div>'+flowBox()+resBox()+'</div></div>'
-    +scoreTable(8)+'</div>'
-    /* 手機：健康燈→等你→兩格→最新幾支片迷你趨勢；大圖、資源、成本不在這裡 */
-    +'<div class="mob">'+mobHome()+'</div></div>';
+/* ER-162 首頁：老闆手機一開就看到「整間工廠在運作」——狀態燈、四張指標卡、需要你決定、
+   一頻道一張卡（三個小指標＋產線七段＋30 天長條）、最近公開的片。
+   桌機與手機同一份版面（grid 自己收成一欄），舊的「桌機六格＋手機另一套」兩份版面已刪。
+   首頁不出現內部編號、檔案路徑、站名術語：卡上的字過 plain()，部門名過 DEPT_ZH。 */
+var DEPT_ZH={"研究":"選題研究","腳本":"腳本","配音":"配音","視覺":"畫面","剪輯":"合成",
+             "品檢發布":"審片與發布","CEO室":"等你放行"};
+function plain(s){            // 洗掉反引號段（都是檔案路徑）、粗體、內部單號、路徑
+  return String(s==null?"":s)
+    .replace(/`[^`]*`/g,"").replace(/\*\*/g,"")
+    .replace(/(?:ER|BE|W|D)-\d+[A-Za-z0-9-]*/g,"")
+    .replace(/[A-Za-z0-9_.-]+\/[A-Za-z0-9_./-]+/g,"")
+    .replace(/[（(]\s*[）)]/g,"").replace(/／{2,}/g,"／").replace(/\s{2,}/g," ")
+    .replace(/^[\s、，。：；／]+|[\s、，。：；／]+$/g,"");
 }
-function mobHome(){
-  var k=snap.kpi||{}, n=(snap.inbox||[]).length;
-  var chs=view.ch?[ch(view.ch)].filter(Boolean):(snap.channels||[]);
+function dayDiff(a,b){
+  var x=Date.parse(String(a||"").replace(" ","T")), y=Date.parse(String(b||"").replace(" ","T"));
+  return (x&&y)?Math.round((y-x)/86400000):null;
+}
+function heroBox(){
+  var d=new Date(String(at||"").replace(" ","T")), wd="日一二三四五六";
+  var n=(snap.inbox||[]).length, why=staleWhy(), bad=!!why||snap.status!=="ONLINE";
+  var txt=why?"資料沒上來，要看一下":((snap.health||{}).halted?"全廠停工中"
+          :(snap.status==="ONLINE"?"工廠運作中":"工廠有狀況"));
+  return '<div class="hero"><h1>'+(isNaN(d.getTime())?"今天"
+      :((d.getMonth()+1)+" 月 "+d.getDate()+" 日（週"+wd.charAt(d.getDay())+"）"))+'</h1>'
+    +'<span class="'+(bad?"bad":"ok")+'">'+esc(txt)+'</span>'
+    +'<span class="dim">'+(n?"有 "+n+" 件等你決定":"沒有等你決定的事")
+    +'・資料 '+hhmm(at)+' 更新</span></div>';
+}
+function homeChs(){ return view.ch?[ch(view.ch)].filter(Boolean):(snap.channels||[]); }
+function cardWeek(){
+  var chs=homeChs();
   var done=chs.reduce(function(a,c){return a+(c.done_week||0);},0);
   var target=chs.reduce(function(a,c){return a+(Number(c.weekly_target)||0);},0);
-  var h='<div class="box" style="text-align:center;padding:16px">'
-    +'<div style="font-size:26px;font-weight:700">'+(staleWhy()?"要看一下":(snap.status==="ONLINE"?"正常":"注意"))+'</div>'
-    +'<div class="dim">'+esc(staleWhy()||("快照 "+hhmm(at)+"・"+(snap.channels||[]).length+" 個頻道"))+'</div></div>';
-  h+=n?('<div class="box"><h2>等你 '+n+' 件</h2>'
-        +(snap.inbox||[]).slice(0,3).map(inboxCard).join("")
-        +(n>3?'<div class="row dim">還有 '+(n-3)+' 件，看「等你」那一頁</div>':"")+'</div>')
-      :'<div class="box"><h2>等你</h2><div class="dim">沒有待決的卡。</div></div>';
-  h+='<div class="kpis">'
-    +kpiTile("本週產量",fmt(done)+'／'+(target||"？"),"")
-    +kpiTile("7 日觀看",fmt(sumDaily(7)),"")+'</div>';
-  h+='<div class="box"><h2>最新幾支片</h2>'
-    +(allVideos().slice(0,4).map(function(v){
-      var s=latestSnap(v)||{};
-      return '<div class="row click" data-vid="'+esc(v.video_id||v.tc)+'">'
-        +'<div style="display:flex;align-items:center;gap:8px">'
-        +'<div style="flex:1"><b>'+esc(v.tc)+'</b><div class="dim">'
-        +esc(String(v.title||"").slice(0,18))+'</div></div>'
-        +spark((v.daily||[]).slice(-14).map(function(x){return x.views;}))+'</div>'
-        +'<div class="dim">'+(s.views!=null?s.key+" 觀看 "+fmt(s.views):"還沒有快照")+'</div></div>';
-    }).join("")||'<div class="dim">還沒推分析資料。</div>')+'</div>';
-  return h;
+  var ready=(snap.inbox||[]).filter(function(r){
+    return r.kind==="decide"&&r.gate_open&&(!view.ch||r.channel===view.ch); }).length;
+  var n=Math.max(target,done+ready,1), seg="";
+  for(var i=0;i<n;i++) seg+='<i class="'+(i<done?"on":(i<done+ready?"wait":""))+'"></i>';
+  return '<div class="box"><div class="dim" style="display:flex;justify-content:space-between">'
+    +'<span>本週出片</span><span>目標 '+(target||"？")+' 支</span></div>'
+    +'<div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">'
+    +'<span class="big">'+fmt(done)+'</span>'
+    +'<span class="dim">／'+(target||"？")+'</span>'
+    +(ready?'<span class="pill warn" style="margin-left:auto">'+ready+' 支做好待放行</span>':"")+'</div>'
+    +'<div class="seg" style="grid-template-columns:repeat('+n+',minmax(0,1fr))">'+seg+'</div>'
+    +'<div class="stat">'+chs.map(function(c){
+      return '<span><span class="chip" style="background:'+esc(c.color)+'"></span>'+esc(c.name)
+        +' '+fmt(c.done_week||0)+'／'+(c.weekly_target||"？")+'</span>';
+    }).join("")+'</div></div>';
+}
+function cardViews(){
+  var d=[]; anaChs().forEach(function(c){ (c.daily||[]).forEach(function(x,i){
+    d[i]=x.pending?null:((d[i]||0)+(x.long||0)+(x.short||0)); }); });
+  var v7=views7("views_7d"), p7=views7("views_prev7"), th=reportThrough();
+  var diff=(v7!=null&&p7!=null)?v7-p7:null;
+  return '<div class="box"><div class="dim">近 7 天觀看</div>'
+    +'<div style="display:flex;align-items:baseline;gap:8px"><span class="big">'
+    +(v7==null?'<span class="dim">量不到</span>':fmt(v7))+'</span>'+delta(v7,p7," ")+'</div>'
+    +spark(d)
+    +'<div class="dim">'+(diff==null?"沒有可比的前 7 天"
+        :((diff>=0?"比前 7 天多 ":"比前 7 天少 ")+fmt(Math.abs(diff))+" 次"))
+    +(th?'・報表到 '+esc(th)+'（晚 2～3 天）':'')+'</div></div>';
+}
+function cardSubs(){
+  var cs=anaChs(), subs=null, dl=null, tv=totalViews();
+  cs.forEach(function(c){
+    var l=c.live||{};
+    if(l.subs!=null) subs=(subs||0)+l.subs;
+    if(l.subs_delta_7d!=null) dl=(dl||0)+l.subs_delta_7d;
+  });
+  var ms=[100,1000,10000,100000,1000000].filter(function(x){return subs==null||x>subs;})[0]||1000000;
+  var pct=subs==null?null:Math.min(100,subs/ms*100);
+  return '<div class="box"><div class="dim" style="display:flex;justify-content:space-between">'
+    +'<span>訂閱</span><span>'+cs.length+' 個頻道合計</span></div>'
+    +'<div style="display:flex;align-items:baseline;gap:8px"><span class="big">'
+    +(subs==null?'<span class="dim">量不到</span>':fmt(subs))+'</span>'
+    +'<span class="dim">本週 '+(dl==null?"量不到":((dl>=0?"＋":"－")+fmt(Math.abs(dl))))+'</span></div>'
+    +(pct==null?'<div class="dim">還沒抓到訂閱數</div>'
+      :'<div class="dim" style="display:flex;justify-content:space-between"><span>下一個里程碑 '
+       +fmt(ms)+'</span><span>'+pct.toFixed(0)+'%</span></div>'
+       +'<div class="bc"><i style="width:'+Math.max(2,pct).toFixed(0)+'%"></i></div>')
+    +'<div class="dim">累計觀看 '+(tv==null?"量不到":fmt(tv))
+    +(dl==null?'・週增減要等每天的量測記滿兩天':'')+'</div></div>';
+}
+function cardCost(){
+  var r=snap.resources||{}, q=r.quota||{}, cash=r.cash||{}, k=snap.kpi||{};
+  var line=function(name,txt,pct,bad){
+    return '<div style="display:flex;justify-content:space-between;align-items:baseline">'
+      +'<span>'+esc(name)+'</span><b style="font-size:14px">'+txt+'</b></div>'
+      +'<div class="bc"><i style="width:'+(pct==null?2:Math.min(100,Math.max(2,pct)).toFixed(0))
+      +'%'+(bad?';background:var(--bad)':'')+'"></i></div>';
+  };
+  var over=cash.week!=null&&cash.cap&&cash.week>cash.cap, overQ=q.pct!=null&&q.pct>100;
+  return '<div class="box"><div class="dim" style="display:flex;justify-content:space-between">'
+    +'<span>本週花費</span><span>每週一早上歸零</span></div>'
+    +line("AI 訂閱額度",(q.pct==null?'<span class="dim">量不到</span>':q.pct+"%"),q.pct,overQ)
+    +line("外部現金",(cash.week==null?'<span class="dim">量不到</span>'
+        :"US$"+fmt(cash.week)+(cash.cap?'<span class="dim"> ／ '+fmt(cash.cap)+'</span>':'')),
+        (cash.week!=null&&cash.cap?cash.week/cash.cap*100:null),over)
+    +'<div class="dim">'+((over||overQ)?"已經超出上限，要看一下":"都在預算內")
+    +(k.per_video_cash_usd!=null?'・每片 US$'+fmt(k.per_video_cash_usd):'')+'</div></div>';
+}
+function askTitle(r){
+  var m=String(r.title||"").match(/標題三選\s*\d\)\s*([^／；\n]+)/);
+  if(m) return plain(m[1]);
+  var t=plain(r.title);
+  m=t.match(/^([^：]{4,60})/);
+  return (m?m[1]:t.slice(0,60))||"等你看一眼";
+}
+function askMeta(r){
+  var c=ch(r.channel), w=dayDiff(r.date,at);
+  return [c?c.name:"",r.build||"",
+          r.kind==="related"?"要到影片後台設相關影片":"長片做好，等你放行公開",
+          r.date?md(r.date)+" 做好":"", (w!=null&&w>0?"等了 "+w+" 天":"")]
+    .filter(Boolean).join("・");
+}
+function asksBox(){
+  var rows=(snap.inbox||[]).filter(function(r){ return !view.ch||r.channel===view.ch; });
+  return '<div class="box"><h2>需要你決定'
+    +(rows.length?'<span class="pill big">'+rows.length+'</span>':'')+'</h2>'
+    +(rows.length?rows.map(function(r){
+      return '<div class="ask"><div class="thumb"><b>'+esc(r.build||"—")+'</b>縮圖在裡面</div>'
+        +'<div style="flex:1 1 200px;min-width:0"><div class="k-title">'+esc(askTitle(r))+'</div>'
+        +'<div class="dim">'+esc(askMeta(r))+'</div></div>'
+        +'<div class="acts" style="margin:0"><button class="p" data-open="'+esc(r.card)+'">'
+        +(r.kind==="related"?"打開待辦":"看縮圖與放行")+'</button></div></div>';
+    }).join(""):'<div class="dim">沒有等你決定的事。</div>')+'</div>';
+}
+function notesBox(){
+  var ns=[], why=staleWhy(), h=snap.health||{}, r=snap.resources||{}, cs=anaChs();
+  var q=((snap.line_now||{}).queue||[]).filter(function(x){ return !view.ch||x.channel===view.ch; });
+  /* 首頁只說白話：過期的原因（哪支片的行程、殘鎖、幾號 pid）留在頂列與「產線」那一頁 */
+  if(why) ns.push(["var(--bad)","工廠的狀態沒有即時更新",
+                   "最後一次更新 "+hhmm(at)+"，比平常久；產線本身不受影響"]);
+  if(h.halted) ns.push(["var(--bad)","全廠停工中","排程器停著，要人去開起來"]);
+  var pend=0;
+  if(cs.length) (cs[0].daily||[]).forEach(function(x){ pend=x.pending?pend+1:0; });
+  if(pend) ns.push(["var(--series2)","最近 "+pend+" 天的觀看數還沒進來",
+                    "YouTube 報表固定晚 2～3 天，不是掉量"]);
+  var gpu=q.filter(function(x){ return x.kind==="gpu"; }).length;
+  if(gpu) ns.push(["var(--accent)",gpu+" 支在等顯卡時窗",
+                   (r.gpu||{}).next_open?"下次開 "+(r.gpu||{}).next_open:"時窗現在沒開"]);
+  var left=homeChs().reduce(function(a,c){
+    return a+Math.max(0,(Number(c.weekly_target)||0)-(c.done_week||0)); },0);
+  if(left) ns.push(["var(--warn)","本週還有 "+left+" 支要完成","做好的片要你放行才算完成"]);
+  var band=(r.quota||{}).band;
+  if(band&&band!=="正常") ns.push(["var(--warn)","AI 訂閱額度 "+band,"撞頂的工作會排隊，不會停工"]);
+  return '<div class="box"><h2>提醒</h2>'+(ns.length?ns.slice(0,3).map(function(x){
+      return '<div class="note"><u style="background:'+x[0]+'"></u><div><div>'+esc(x[1])+'</div>'
+        +'<div class="dim">'+esc(x[2])+'</div></div></div>';
+    }).join(""):'<div class="dim">沒有要提醒的事。</div>')+'</div>';
+}
+function anaOf(slug){
+  return ((ana&&ana.channels)||[]).filter(function(x){ return x.slug===slug; })[0]||null;
+}
+function depts(c){                      // 七段＝那個頻道自己宣告的部門順序，不寫死
+  var out=[];
+  (c.builds||[]).forEach(function(b){ (b.stations||[]).forEach(function(s){
+    if(s.dept&&out.indexOf(s.dept)<0) out.push(s.dept); }); });
+  return out;
+}
+function stageAt(b,ds){                 // 片現在在第幾段：在動的站優先，都沒有就看做完的最後一站
+  var sts=b.stations||[], pick=null;
+  ["running","awaiting_boss","awaiting_ceo","failed","blocked"].forEach(function(st){
+    if(!pick) sts.forEach(function(s){ if(!pick&&s.status===st) pick=s; });
+  });
+  if(!pick) sts.forEach(function(s){ if(/^completed/.test(String(s.status||""))) pick=s; });
+  var i=pick?ds.indexOf(pick.dept||""):-1;
+  return i<0?0:i;
+}
+function stageBox(c){
+  var ds=depts(c);
+  if(!ds.length) return '<div class="dim">這個頻道現在沒有在線的片。</div>';
+  var films=(c.builds||[]).map(function(b){
+    return {at:stageAt(b,ds), id:/^_/.test(b.build||"")?"下一支":(b.build||"？")}; });
+  var top=films.reduce(function(a,f){ return Math.max(a,f.at); },0);
+  return '<div class="stg" style="grid-template-columns:repeat('+ds.length+',minmax(0,1fr))">'
+    +ds.map(function(d,i){
+      return '<div><i class="'+(i<=top?"on":"")+'"></i><em>'+esc(DEPT_ZH[d]||d)+'</em>'
+        +films.filter(function(f){ return f.at===i; })
+              .map(function(f){ return '<b>'+esc(f.id)+'</b>'; }).join("")+'</div>';
+    }).join("")+'</div>';
+}
+function barsBox(c){                    // 30 天每日觀看；報表未到的日子畫斜線，不畫 0
+  var a=anaOf(c.slug)||{}, ds=a.daily||[];
+  if(!ds.length) return '<div class="dim">還沒推每日觀看資料。</div>';
+  var pubs={}; (a.publishes||[]).forEach(function(p){ pubs[p.d]=1; });
+  var tot=ds.map(function(x){ return x.pending?null:((x.long||0)+(x.short||0)); });
+  if(!tot.some(function(v){ return v; }))
+    return '<div class="dim">頻道還沒開始出片，第一支片上架後就會有每日觀看。</div>';
+  var max=Math.max.apply(null,[1].concat(tot.filter(function(v){ return v!=null; })));
+  return '<div class="bars">'+ds.map(function(x,i){
+      var v=tot[i];
+      return '<i class="'+(v==null?"none":(pubs[x.d]?"pub":""))+'"'
+        +(v==null?'':' style="height:'+Math.max(2,Math.round(v/max*88))+'px"')
+        +' title="'+esc(x.d)+(v==null?"：報表還沒到":"："+fmt(v)+" 次")+'"></i>';
+    }).join("")+'</div>'
+    +'<div class="dim" style="display:flex;justify-content:space-between"><span>'+md(ds[0].d)
+    +'</span><span>深色＝公開日・斜線＝報表還沒到</span><span>'+md(ds[ds.length-1].d)+'</span></div>';
+}
+function chCard(c){
+  var a=anaOf(c.slug)||{}, l=a.live||{}, k=c.kpi||{};
+  var open=(l.total_views!=null)||((a.publishes||[]).length>0);
+  var pill=c.stuck?["bad","有片卡住"]:(open?["ok","運作中"]:["","籌備中"]);
+  var v7=a.views_7d, p7=a.views_prev7;
+  var stat=function(t,v,d){ return '<div><span class="dim">'+esc(t)+'</span><b>'+v
+    +'</b><span class="dim">'+esc(d)+'</span></div>'; };
+  return '<div class="box"><h2><span class="chip" style="background:'+esc(c.color)+'"></span>'
+    +esc(c.name)+'<span class="pill '+pill[0]+'">'+pill[1]+'</span>'
+    +'<span class="c" style="margin-left:auto">每週 '+(c.weekly_target||"？")+' 支</span></h2>'
+    +'<div class="st3">'
+    +stat("訂閱",l.subs==null?'<span class="dim">量不到</span>':fmt(l.subs),
+          l.subs==null?"頻道還沒開":(l.subs_delta_7d==null?"週增減還要一天才算得出來"
+            :"本週 "+(l.subs_delta_7d>=0?"＋":"－")+fmt(Math.abs(l.subs_delta_7d))))
+    +stat("近 7 天觀看",(!open||v7==null)?'<span class="dim">量不到</span>':fmt(v7),
+          (!open)?"頻道還沒開":((v7==null||p7==null||!p7)?"沒有可比的前 7 天"
+            :((v7>=p7?"▲ ":"▼ ")+Math.abs(Math.round((v7-p7)/p7*100))+"%")))
+    +stat("本週花費",k.cash_week==null?'<span class="dim">量不到</span>':"US$"+fmt(k.cash_week),"現金")
+    +'</div>'
+    +'<div class="dim" style="display:flex;justify-content:space-between"><span>產線進度</span>'
+    +'<span>在線 '+fmt(c.active||0)+' 支・等你 '+fmt(c.waiting||0)+'</span></div>'
+    +stageBox(c)
+    +'<div class="dim" style="display:flex;justify-content:space-between;margin-top:10px">'
+    +'<span>每日觀看・近 '+((ana&&ana.days)||30)+' 天</span></div>'
+    +barsBox(c)+'</div>';
+}
+function recentBox(){
+  var rows=[];
+  anaChs().forEach(function(c){
+    var pred={}, tc={};
+    (c.videos||[]).forEach(function(v){
+      if(!v.video_id) return;
+      pred[v.video_id]=(v.pred_num||{}).views_7d; tc[v.video_id]=v.video_id; });
+    (((c.live||{}).videos)||[]).forEach(function(v){
+      rows.push({title:v.title,date:v.published,views:v.views,color:c.color,
+                 pred:pred[v.id],vid:tc[v.id]||""}); });
+  });
+  if(!rows.length) return '<div class="box"><h2>最近公開的片</h2>'
+    +'<div class="dim">還沒有公開的片，或還沒抓到累計觀看。</div></div>';
+  rows.sort(function(x,y){ return String(y.date||"").localeCompare(String(x.date||"")); });
+  rows=rows.slice(0,6);
+  var max=niceMax(Math.max.apply(null,[1].concat(rows.map(function(r){
+    return Math.max(r.views||0,r.pred||0); }))));
+  return '<div class="box"><h2>最近公開的片'
+    +'<span class="c">累計觀看（跟後台同一個數）・刻線＝上架前預測</span></h2>'
+    +rows.map(function(r){
+      var w=r.views==null?2:Math.min(100,Math.max(2,r.views/max*100));
+      return '<div class="vrow'+(r.vid?" click":"")+'"'
+        +(r.vid?' data-vid="'+esc(r.vid)+'"':'')+'><div><div class="ell">'+esc(r.title||"—")
+        +'</div><div class="dim">'+esc(md(r.date||""))+' 公開</div></div>'
+        +'<div class="bc"><i style="width:'+w.toFixed(0)+'%;background:'
+        +esc(r.color||"var(--accent)")+'"></i>'
+        +(r.pred!=null?'<u style="left:'+Math.min(100,r.pred/max*100).toFixed(0)
+          +'%" title="上架前預測 '+fmt(r.pred)+'"></u>':'')+'</div>'
+        +'<div class="num">'+(r.views==null?'<span class="dim">量不到</span>':fmt(r.views))
+        +'</div></div>';
+    }).join("")+'</div>';
+}
+function home(){
+  return '<div class="page">'+heroBox()
+    +'<div class="m4">'+cardWeek()+cardViews()+cardSubs()+cardCost()+'</div>'
+    +'<div class="two">'+asksBox()+notesBox()+'</div>'
+    +'<div class="chs">'+homeChs().map(chCard).join("")+'</div>'
+    +recentBox()+'</div>';
 }
 
 /* ---------- 分頁：頻道／成績／產線／成本／等你 ---------- */
@@ -700,16 +1003,23 @@ function channelsPage(){
       +kpiTile("異常",fmt((c.alerts||[]).length),"")
       +'</div>'+(k.why?'<div class="dim" style="margin-top:6px">'+esc(k.why)+'</div>':'')+'</div>';
     if((c.pool||[]).length){
+      /* ER-142：擋下的卡立刻離開列表，收進下方摺疊「已擋下（N）」；樂觀值優先於快照 */
+      var row=function(p){
+        var off=poolBlocked(c.slug,p);
+        return '<div class="row"><div class="k-meta"><span>任務卡</span>'
+          +'<span class="dim">・</span><span>'+esc(p.tc)+'</span>'
+          +(off?'<span class="pill bad">已擋下</span>':'<span class="pill ok">可開工</span>')+'</div>'
+          +'<div class="k-title">'+esc(p.title)+'</div>'
+          +(off&&p.reason?'<div class="k-note">擋下理由：'+esc(p.reason)+'</div>':"")
+          +'<div class="acts"><button data-pool="'+esc(c.slug)+":"+esc(p.tc)+":"+(off?"un":"do")
+          +'">'+(off?"解除擋下":"擋下這張")+'</button></div></div>';
+      };
+      var live=c.pool.filter(function(p){ return !poolBlocked(c.slug,p); });
+      var off=c.pool.filter(function(p){ return poolBlocked(c.slug,p); });
       h+='<div class="box"><h2>任務卡池<span class="c">擋下＝這一張不許開工</span></h2>'
-        +c.pool.map(function(p){
-          return '<div class="row"><div class="k-meta"><span>任務卡</span>'
-            +'<span class="dim">・</span><span>'+esc(p.tc)+'</span>'
-            +(p.blocked?'<span class="pill bad">已擋下</span>':'<span class="pill ok">可開工</span>')+'</div>'
-            +'<div class="k-title">'+esc(p.title)+'</div>'
-            +(p.blocked&&p.reason?'<div class="k-note">擋下理由：'+esc(p.reason)+'</div>':"")
-            +'<div class="acts"><button data-pool="'+esc(c.slug)+":"+esc(p.tc)+":"+(p.blocked?"un":"do")
-            +'">'+(p.blocked?"解除擋下":"擋下這張")+'</button></div></div>';
-        }).join("")+'</div>';
+        +(live.map(row).join("")||'<div class="dim">沒有可開工的卡。</div>')
+        +(off.length?'<details><summary>已擋下（'+off.length+'）</summary>'
+                     +off.map(row).join("")+'</details>':"")+'</div>';
     }
     if((c.alerts||[]).length){
       h+='<div class="box"><h2>異常<span class="c">'+c.alerts.length+' 件</span></h2>'
@@ -721,7 +1031,8 @@ function channelsPage(){
 }
 function linePage(){
   var chs=view.ch?[ch(view.ch)].filter(Boolean):(snap.channels||[]);
-  var h='<div class="page">'+flowBox();
+  /* ER-162：行事曆、產線即時、資源與事件流都退到這一頁（首頁只放老闆要的那幾張圖） */
+  var h='<div class="page">'+calBox()+nowBox()+resBox();
   chs.forEach(function(c){
     h+='<div class="box"><h2>'+esc(c.name)+' 在線片<span class="c">'+(c.orders||[]).length+' 支</span></h2>'
       +((c.orders||[]).map(function(o){
@@ -795,10 +1106,10 @@ function inboxCard(r){
   var c=ch(r.channel), busy=!!view.busy[r.card], p=titleParts(r,false);
   var meta=[kindLabel(r),r.build||"",c?c.name:(r.channel||"非產線"),r.card,r.date||""]
     .filter(Boolean).map(esc).join(' <span class="dim">・</span> ');
-  return '<div class="row'+(busy?" busy":"")+(r.gate_open===false?" muted":"")+'">'
+  /* ER-161：關卡已過的卡由看板後端 close_passed_cards() 自動結掉（不再列成灰色「卡未結」）。 */
+  return '<div class="row'+(busy?" busy":"")+'">'
     +'<div class="k-meta"><span class="chip" style="background:'
-    +esc(c&&c.color?c.color:"var(--series2)")+'"></span>'+meta
-    +(r.gate_open===false?'<span class="pill">關卡已過・卡未結</span>':"")+'</div>'
+    +esc(c&&c.color?c.color:"var(--series2)")+'"></span>'+meta+'</div>'
     +'<div class="k-title">'+esc(p.t)+'</div>'
     +'<div class="k-note">'+esc(p.n||("期限 "+(r.due||"—")+"・逾期預設："+(r.default||"—")))+'</div>'
     +(busy?'<div class="acts"><span class="spin"></span><span class="dim">處理中…</span></div>'
@@ -971,7 +1282,8 @@ function body(){
   if(view.doc) return docPage();
   if(view.vid) return videoPage();
   if(view.tab==="channels") return channelsPage();
-  if(view.tab==="scores") return '<div class="page">'+scoreTable(0)+'</div>';
+  /* ER-162：全頻道每日觀看那張大圖退到「影片成績」這一頁 */
+  if(view.tab==="scores") return '<div class="page">'+dailyChart()+scoreTable(0)+'</div>';
   if(view.tab==="line") return linePage();
   if(view.tab==="cost") return costPage();
   if(view.tab==="inbox") return inboxPage();
@@ -980,7 +1292,7 @@ function body(){
 /* 自動重讀（60 秒一輪）不得把老闆正在寫的字或開著的彈窗清掉：整頁重畫延後到彈窗關上
    或輸入框空了為止（deferred），關上時再補一次重讀。 */
 function editing(){
-  if(view.card) return true;
+  if(view.card||view.poolAsk) return true;
   var ae=document.activeElement;
   if(ae&&(ae.tagName==="TEXTAREA"||ae.tagName==="INPUT")) return true;
   return Object.keys(view.notes).some(function(k){ return (view.notes[k]||"").trim()!==""; });
@@ -990,9 +1302,9 @@ function render(auto){
   if(auto&&editing()){ deferred=true; return false; }
   var app=document.getElementById("app");
   app.innerHTML=bar()+(view.err?'<div class="page"><div class="box err">'+esc(view.err)+'</div></div>':"")
-    +body()+cardModal()+nav()+toastsHtml();
+    +body()+cardModal()+poolModal()+nav()+toastsHtml();
   wire();
-  lockScroll(!!view.card);
+  lockScroll(!!view.card||!!view.poolAsk);
   var dlg=document.querySelector(".doc [data-act],.doc button");   // 焦點進入彈窗
   if(view.card&&dlg&&dlg.focus) dlg.focus();
   return true;
@@ -1009,7 +1321,8 @@ function closeCard(){                             // 關上就把草稿丟掉（
   render();
   if(deferred){ deferred=false; fetchSnap(); }
 }
-function go(tab){ view.tab=tab; view.vid=""; view.doc=null; closeCard(); window.scrollTo(0,0); }
+function go(tab){ view.tab=tab; view.vid=""; view.doc=null; view.poolAsk=null;
+  closeCard(); window.scrollTo(0,0); }
 function each(sel,fn){ Array.prototype.forEach.call(document.querySelectorAll(sel),fn); }
 function wireToasts(){
   each("[data-tdrop]",function(b){ b.onclick=function(){ dropToast(+b.getAttribute("data-tdrop")); }; });
@@ -1050,7 +1363,17 @@ function wire(){
   each("[data-send]",function(b){ b.onclick=function(){ sendNote(b.getAttribute("data-send")); }; });
   each("[data-rel]",function(b){ b.onclick=function(){ relDone(b.getAttribute("data-rel")); }; });
   each("[data-pool]",function(b){ b.onclick=function(){
-    var p=b.getAttribute("data-pool").split(":"); poolToggle(b,p[0],p[1],p[2]==="un"); }; });
+    var p=b.getAttribute("data-pool").split(":"), c=ch(p[0]);
+    var card=((c&&c.pool)||[]).filter(function(x){ return x.tc===p[1]; })[0]||{};
+    view.poolAsk={slug:p[0],tc:p[1],un:p[2]==="un",title:card.title||""}; render(); }; });
+  var px=document.getElementById("px"), pbg=document.getElementById("pbg");
+  if(px) px.onclick=function(){ view.poolAsk=null; render(); };
+  if(pbg) pbg.onclick=function(e){ if(e.target===pbg){ view.poolAsk=null; render(); } };
+  var pno=document.getElementById("pno");
+  if(pno) pno.onclick=function(){ view.poolAsk=null; render(); };
+  var pok=document.getElementById("pok");
+  if(pok) pok.onclick=function(){
+    var a=view.poolAsk; if(a) poolToggle(a.slug,a.tc,a.un); };
 }
 /* ---------- 動作：都以卡號為鍵，送出成功就關彈窗、卡變處理中、結果走提示 ---------- */
 function act(card,verdict){
@@ -1086,15 +1409,36 @@ function relDone(card){
   submit(card,{kind:"related-done",channel:r.channel,build:r.build,card:card,verdict:"",note:""},
          card+" 已設好",function(){ relDone(card); });
 }
-function poolToggle(btn,slug,tc,un){             // 卡池：按鈕轉圈→恢復按鈕，結果走提示
-  var label=btn.innerHTML;
-  btn.disabled=true; btn.innerHTML='<span class="spin"></span>送出中…';
-  var done=function(msg,kind){
-    btn.disabled=false; btn.innerHTML=label; toast(msg,kind||"");
-  };
+/* 卡池擋下／解除（ER-142）：先彈窗確認 → 卡立刻換邊（樂觀）→ 結果走提示；
+   送不出去就把樂觀值收回來，列表回到原樣。 */
+function poolBlocked(slug,p){
+  var v=view.poolOpt[slug+":"+p.tc];
+  return v===undefined?!!p.blocked:v;
+}
+function poolToggle(slug,tc,un){
+  view.poolOpt[slug+":"+tc]=!un; view.poolAsk=null; render();
+  var label=(un?"解除擋下 ":"擋下 ")+tc;
+  var tid=toast("已送出："+label,"wait");
   sendAction({kind:un?"pool-unblock":"pool-block",channel:slug,build:tc,card:"",verdict:"",note:""})
-    .then(function(row){ waitAction(row.id,function(res){ done((un?"解除擋下 ":"擋下 ")+tc+"："+res); }); })
-    .catch(function(e){ done("送不出去："+(e.message||e),"bad"); });
+    .then(function(row){ waitAction(row.id,function(res){
+      dropToast(tid); toast("已完成："+label+"（"+res+"）"); }); })
+    .catch(function(e){
+      delete view.poolOpt[slug+":"+tc];           // 沒送出去就不要假裝擋下了
+      dropToast(tid); render();
+      toast("送不出去："+(e.message||e),"bad",function(){ poolToggle(slug,tc,un); });
+    });
+}
+function poolModal(){
+  var a=view.poolAsk;
+  if(!a) return "";
+  return '<div class="doc" id="pbg"><div role="dialog" aria-modal="true" aria-label="卡池確認">'
+    +'<div class="k-meta"><span>任務卡</span><span class="dim">・</span><span>'+esc(a.tc)+'</span>'
+    +'<button class="g" id="px" style="margin-left:auto" aria-label="關閉">'+ico("x")+'關閉</button></div>'
+    +'<div class="k-title">'+esc(a.title||a.tc)+'</div>'
+    +'<div class="k-note">'+(a.un?"解除之後這張卡會回到可開工，行事曆排到它就會開工。"
+                                 :"擋下之後這張卡不會開工，會收進「已擋下」，隨時可以解除。")+'</div>'
+    +'<div class="acts"><button class="p" id="pok">'+(a.un?"確定解除擋下":"確定擋下這張")+'</button>'
+    +'<button id="pno">取消</button></div></div></div>';
 }
 
 /* ---------- 起步 ---------- */
@@ -1105,7 +1449,11 @@ function start(){
   document.addEventListener("visibilitychange",function(){ if(!document.hidden) fetchSnap(true); });
   if(!start.keyed){                              // Esc 關彈窗（只掛一次）
     start.keyed=true;
-    document.addEventListener("keydown",function(e){ if(e.key==="Escape"&&view.card) closeCard(); });
+    document.addEventListener("keydown",function(e){
+      if(e.key!=="Escape") return;
+      if(view.poolAsk){ view.poolAsk=null; render(); return; }
+      if(view.card) closeCard();
+    });
   }
 }
 (function(){
