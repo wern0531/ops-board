@@ -1337,12 +1337,12 @@ function dwFilm(f){
   var body='<div class="dwb">';
   if(ths.length){
     body+='<section class="sec"><div class="hd"><h3>選一張縮圖</h3>'
-      +'<span class="dim">機檢挑了 '+esc(pick)+'</span></div>'
+      +'<span class="dim">系統建議 '+esc(pick)+'</span></div>'
       +'<div class="g3">'+ths.map(function(t){
         return '<button class="pick" data-thumb="'+esc(t.k)+'" aria-pressed="'+(sel===t.k)+'" '
           +'aria-label="縮圖 '+esc(t.k)+'"><img src="'+esc(t.src)+'" alt="縮圖 '+esc(t.k)+'"></button>';
       }).join("")+'</div>'
-      +'<div class="dim">'+(sel===pick?"用機檢挑的這張放行；想換別張就點它"
+      +'<div class="dim">'+(sel===pick?"用系統建議的這張放行；想換別張就點它"
         :"選了 "+esc(sel)+"：換縮圖要退回重做發布包，所以下面那顆會變成「要改」")+'</div>'
       +'<div class="dim">成片在電腦上看（放行前的成片不放上任何網址，也不先上傳）</div></section>';
   }
