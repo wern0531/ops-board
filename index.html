@@ -162,6 +162,7 @@ pre{white-space:pre-wrap;word-break:break-word;font:13px/1.65 ui-monospace,"Noto
   border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:2px;color:var(--dim);font-size:11px}
 .thumb b{font-size:13px;color:var(--ink)}
+img.thumb{display:block;object-fit:cover;cursor:zoom-in}   /* ER-163 B5：真的縮圖 */
 .note{display:flex;gap:10px;align-items:flex-start;margin-top:10px}
 .note u{flex:none;margin-top:6px;width:8px;height:8px;border-radius:50%;text-decoration:none}
 .chs{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(350px,1fr))}
@@ -726,8 +727,9 @@ function scoreTable(limit){
    一頻道一張卡（三個小指標＋產線七段＋30 天長條）、最近公開的片。
    桌機與手機同一份版面（grid 自己收成一欄），舊的「桌機六格＋手機另一套」兩份版面已刪。
    首頁不出現內部編號、檔案路徑、站名術語：卡上的字過 plain()，部門名過 DEPT_ZH。 */
+/* ER-163 B8：七段的字一行放得下才不會在 375 寬折行 → 標籤一律四個字以內 */
 var DEPT_ZH={"研究":"選題研究","腳本":"腳本","配音":"配音","視覺":"畫面","剪輯":"合成",
-             "品檢發布":"審片與發布","CEO室":"等你放行"};
+             "品檢發布":"審片發布","CEO室":"等你放行"};
 function plain(s){            // 洗掉反引號段（都是檔案路徑）、粗體、內部單號、路徑
   return String(s==null?"":s)
     .replace(/`[^`]*`/g,"").replace(/\*\*/g,"")
@@ -848,7 +850,8 @@ function asksBox(){
     +(rows.length?rows.map(function(r){
       /* ER-163 B5：縮圖來自快照（登入後才讀得到），不在公開 repo 裡；沒有圖才退回片號 */
       return '<div class="ask">'
-        +(r.thumb?'<img class="thumb" src="'+esc(r.thumb)+'" alt="'+esc(r.build||"")+' 縮圖">'
+        +(r.thumb?'<img class="thumb" data-open="'+esc(r.card)+'" src="'+esc(r.thumb)
+                  +'" alt="'+esc(r.build||"")+' 縮圖">'
                  :'<div class="thumb"><b>'+esc(r.build||"—")+'</b>沒抓到縮圖</div>')
         +'<div style="flex:1 1 200px;min-width:0"><div class="k-title">'+esc(askTitle(r))+'</div>'
         +'<div class="dim">'+esc(askMeta(r))+'</div></div>'
@@ -950,7 +953,7 @@ function chCard(c){
     +'<div class="dim" style="display:flex;justify-content:space-between"><span>產線進度</span>'
     +'<span>在線 '+fmt(c.active||0)+' 支・等你 '+fmt(c.waiting||0)+'</span></div>'
     +stageBox(c)
-    +'<div class="dim" style="display:flex;justify-content:space-between;margin-top:10px">'
+    +'<div class="dim chcap" style="display:flex;justify-content:space-between;margin-top:10px">'
     +'<span>每日觀看・近 '+((ana&&ana.days)||30)+' 天</span></div>'
     +barsBox(c)+'</div>';
 }
@@ -963,17 +966,17 @@ function recentBox(){
       pred[v.video_id]=(v.pred_num||{}).views_7d; tc[v.video_id]=v.video_id; });
     (((c.live||{}).videos)||[]).forEach(function(v){
       rows.push({title:v.title,date:v.published,views:v.views,color:c.color,
-                 pred:pred[v.id],vid:tc[v.id]||""}); });
+                 short:!!v.short,pred:pred[v.id],vid:tc[v.id]||""}); });
   });
   if(!rows.length) return '<div class="box"><h2>最近公開的片</h2>'
     +'<div class="dim">還沒有公開的片，或還沒抓到累計觀看。</div></div>';
   rows.sort(function(x,y){ return String(y.date||"").localeCompare(String(x.date||"")); });
-  rows=rows.slice(0,6);
-  var max=niceMax(Math.max.apply(null,[1].concat(rows.map(function(r){
-    return Math.max(r.views||0,r.pred||0); }))));
-  return '<div class="box"><h2>最近公開的片'
-    +'<span class="c">累計觀看（跟後台同一個數）・刻線＝上架前預測</span></h2>'
-    +rows.map(function(r){
+  /* ER-163 B7：長片與 Shorts 的觀看數量級差一個數位，混在一起比沒有意義 → 兩段分開，
+     各自用自己的最大值當滿格；片名已由後端去掉「｜頻道名」後綴，截斷不會留半個字。 */
+  var seg=function(list){
+    var max=niceMax(Math.max.apply(null,[1].concat(list.map(function(r){
+      return Math.max(r.views||0,r.pred||0); }))));
+    return list.map(function(r){
       var w=r.views==null?2:Math.min(100,Math.max(2,r.views/max*100));
       return '<div class="vrow'+(r.vid?" click":"")+'"'
         +(r.vid?' data-vid="'+esc(r.vid)+'"':'')+'><div><div class="ell">'+esc(r.title||"—")
@@ -984,7 +987,15 @@ function recentBox(){
           +'%" title="上架前預測 '+fmt(r.pred)+'"></u>':'')+'</div>'
         +'<div class="num">'+(r.views==null?'<span class="dim">量不到</span>':fmt(r.views))
         +'</div></div>';
-    }).join("")+'</div>';
+    }).join("");
+  };
+  var longs=rows.filter(function(r){ return !r.short; }).slice(0,5);
+  var shorts=rows.filter(function(r){ return r.short; }).slice(0,3);
+  return '<div class="box"><h2>最近公開的長片'
+    +'<span class="c">累計觀看（跟後台同一個數）・刻線＝上架前預測</span></h2>'
+    +(longs.length?seg(longs):'<div class="dim">還沒有公開的長片。</div>')
+    +(shorts.length?'<h2 style="margin:14px 0 0">最近公開的 Shorts</h2>'+seg(shorts):'')
+    +'</div>';
 }
 function home(){
   return '<div class="page">'+heroBox()
