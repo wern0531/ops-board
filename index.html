@@ -835,7 +835,8 @@ function mCost(){
   /* 手機只放得下一個數字：留「AI 額度」（現金在「成本」那一頁看） */
   return '<div class="card" style="flex-direction:column;align-items:stretch;gap:6px;'
     +'justify-content:center">'
-    +'<div class="col mob" style="align-items:center"><span class="lab">AI 額度</span>'
+    +'<div class="mob" style="flex-direction:column;align-items:center">'
+    +'<span class="lab">AI 額度</span>'
     +'<span class="big">'+(q.pct==null?"—":q.pct+"%")+'</span></div>'
     +'<div class="xtra" style="width:100%">'
     +line("AI 額度",q.pct,(q.pct==null?"—":q.pct+"%"),overQ?"r":"")
@@ -1285,7 +1286,7 @@ function costPage(){
           :"US$"+fmt(c.non_video)),"選題、週報這類")
     +'</div>'+paneWrap("main",[{label:"每個頻道花多少", html:
      '<section class="panel grow"><div class="ph"><h2>每個頻道花多少</h2>'
-    +'<span class="dim">現金是真的付出去的錢</span></div>'
+    +'<span class="dim">帳本累計・現金是真的付出去的錢</span></div>'
     +'<div class="pb"><div class="rows">'+(byc.map(function(x){
       var v=c.by_channel[x], cc=ch(x);
       return '<div class="row"><span class="chip" style="background:'
@@ -1294,7 +1295,7 @@ function costPage(){
         +'<span class="num">US$'+fmt(v.cash)+'</span>'
         +'<span class="dim">顯卡 '+fmt(v.gpu_min)+' 分</span></div>';
     }).join("")||'<div class="dim">還沒有分頻道的帳。</div>')+'</div>'
-    +'<div class="dim">'+esc(plain(c.why||""))+'</div></div></section>'},
+    +'</div></section>'},
     {label:"看起來像 0，其實是不計", side:true, html:
      '<section class="panel grow"><div class="ph"><h2>看起來像 0，其實是不計</h2></div>'
     +'<div class="pb">'+((c.not_counted||[]).map(function(x){
