@@ -991,7 +991,8 @@ function asksPanel(slug,limit){
   return '<section class="panel'+(limit?'':' grow')+'" aria-label="等你決定">'
     +'<div class="ph"><h2>等你決定</h2>'
     +(rows.length?'<span class="cnt num">'+rows.length+'</span>':'')
-    +(sp.rel?'<span class="dim ell">放行 '+sp.ask+'・小事 '+sp.rel+'</span>':'')
+    /* 窄的右欄放不下這一句（每張卡自己寫了是放行還是小事），只在「等你」整頁寫 */
+    +((sp.rel&&!limit)?'<span class="dim ell">'+esc(inboxWord(slug))+'</span>':'')
     +(limit&&rows.length>limit?'<button class="g" data-tab="inbox" style="margin-left:auto">看全部</button>'
       :(limit?'':'<span class="gap"></span>'+pager("ask",rows.length,per("ask"),"件")))+'</div>'
     +'<div class="pb" style="overflow:hidden">'
