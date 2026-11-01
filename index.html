@@ -843,6 +843,13 @@ function mSubs(){
     +'<span class="dim lab2" style="text-align:right">到 '+fmt(ms)+' 還差 '
     +(subs==null?"？":fmt(ms-subs))+'</span></div></div>';
 }
+/* ER-166：訂閱剩餘只在讀數還新鮮時才報數字；過期或沒掛上 status line 一律「未知」，
+   不准拿舊的 token 估算頂替。`qAge` 是給旁邊那行資料時效用的。 */
+function qRemain(q){ return (q&&q.fresh&&q.remain_pct!=null)?q.remain_pct:null; }
+function qAge(q){
+  if(!q||!q.at) return "還沒讀到過（status line 未掛上）";
+  return (q.fresh?"讀於 ":"上次 ")+String(q.at).slice(5,16)+(q.fresh?"":"・已過期當未知");
+}
 function mCost(){
   var r=snap.resources||{}, q=r.quota||{}, cash=r.cash||{};
   var line=function(name,pct,txt,cls){
@@ -850,15 +857,16 @@ function mCost(){
       +'<span class="dim" style="width:56px">'+name+'</span>'+bc(pct,cls)
       +'<span class="num" style="width:56px;text-align:right;font-weight:600">'+txt+'</span></div>';
   };
-  var over=cash.week!=null&&cash.cap&&cash.week>cash.cap, overQ=q.pct!=null&&q.pct>100;
-  /* 手機只放得下一個數字：留「AI 額度」（現金在「成本」那一頁看） */
+  var over=cash.week!=null&&cash.cap&&cash.week>cash.cap;
+  /* ER-166：手機只放得下一個數字 → 留「訂閱還剩多少」（真實值；讀不到就寫未知） */
+  var rem=qRemain(q), remTxt=(rem==null?"未知":rem+"%");
   return '<div class="card" style="flex-direction:column;align-items:stretch;gap:6px;'
     +'justify-content:center">'
     +'<div class="mob" style="flex-direction:column;align-items:center">'
-    +'<span class="lab">AI 額度</span>'
-    +'<span class="big">'+(q.pct==null?"—":q.pct+"%")+'</span></div>'
+    +'<span class="lab">訂閱剩餘</span>'
+    +'<span class="big">'+remTxt+'</span></div>'
     +'<div class="xtra" style="width:100%">'
-    +line("AI 額度",q.pct,(q.pct==null?"—":q.pct+"%"),overQ?"r":"")
+    +line("訂閱剩餘",rem,remTxt,q.light==="紅"?"r":(q.light==="黃"?"":"g"))
     +line("外部現金",(cash.week!=null&&cash.cap?cash.week/cash.cap*100:null),
           (cash.week==null?"—":"$"+fmt(cash.week)+(cash.cap?"/"+fmt(cash.cap):"")),over?"r":"g")
     +'</div></div>';
@@ -1016,8 +1024,12 @@ function notes(slug){
   var left=(slug?[ch(slug)].filter(Boolean):openedChs()).filter(function(c){ return c.opened!==false; })
     .reduce(function(a,c){ return a+Math.max(0,(Number(c.weekly_target)||0)-(c.done_week||0)); },0);
   if(left) ns.push(["var(--warn)","本週還有 "+left+" 支要完成","做好的片要你放行才算完成"]);
-  var band=(r.quota||{}).band;
-  if(band&&band!=="正常") ns.push(["var(--warn)","AI 訂閱額度 "+band,"撞頂的工作會排隊，不會停工"]);
+  /* ER-166：提醒寫白話——紅＝產線真的會停、黃＝建議暫停開新單、未知＝讀不到別亂報 */
+  var qq=r.quota||{};
+  if(qq.light==="紅") ns.push(["var(--bad)","額度不夠，產線會排隊停擺",plain(qq.text||"")]);
+  else if(qq.light==="黃") ns.push(["var(--warn)","額度照目前燒法會不夠",
+                                    "建議暫停開新單（施工與討論才是大頭）"]);
+  else if(qq.light==="未知") ns.push(["var(--series2)","訂閱剩餘讀不到",qAge(qq)]);
   /* 異常：只留「等你決定」裡沒有的那些（等放行的那幾支在上面那塊已經寫了，不重複講） */
   (snap.channels||[]).forEach(function(c){
     if(slug&&c.slug!==slug) return;
