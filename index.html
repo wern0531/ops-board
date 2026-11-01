@@ -163,6 +163,7 @@ pre{white-space:pre-wrap;word-break:break-word;font:13px/1.65 ui-monospace,"Noto
   justify-content:center;gap:2px;color:var(--dim);font-size:11px}
 .thumb b{font-size:13px;color:var(--ink)}
 img.thumb{display:block;object-fit:cover;cursor:zoom-in}   /* ER-163 B5：真的縮圖 */
+img.shot{width:100%;height:auto;border-radius:10px;border:1px solid var(--line);margin:10px 0 0}
 .note{display:flex;gap:10px;align-items:flex-start;margin-top:10px}
 .note u{flex:none;margin-top:6px;width:8px;height:8px;border-radius:50%;text-decoration:none}
 .chs{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(350px,1fr))}
@@ -181,7 +182,7 @@ img.thumb{display:block;object-fit:cover;cursor:zoom-in}   /* ER-163 B5：真的
 .bars i{flex:1 1 0;display:block;min-height:2px;border-radius:2px 2px 0 0;background:var(--accent);
   opacity:.45}
 .bars i.pub{opacity:1}
-.bars i.none{opacity:1;height:10px;
+.bars i.none{opacity:1;height:12%;
   background:repeating-linear-gradient(135deg,var(--line) 0 3px,transparent 3px 6px)}
 .vrow{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr) 74px;gap:12px;
   align-items:center;padding:8px 0;border-top:1px solid var(--line)}
@@ -203,9 +204,15 @@ img.thumb{display:block;object-fit:cover;cursor:zoom-in}   /* ER-163 B5：真的
   .vrow{grid-template-columns:minmax(0,1fr) 66px}
   .vrow .bc{grid-column:1/-1}
   .thumb{width:88px;height:50px}
-  .stg em{white-space:normal;font-size:10px;line-height:1.25}
+  /* ER-163 B8：375 寬下各歸各位——頂列一行放得下（登出只留圖示、頻道選單自己縮）、
+     七段的字不折行（只縮字級，必要時省略號）、30 天長條不多佔高度。 */
+  .bar{padding:9px 12px;gap:6px}
+  .bar select{min-width:0!important;flex:1 1 50px;width:auto}
+  .bar .lbl{display:none}
+  .stg em{font-size:10px;line-height:1.25}
+  .chcap{margin-top:4px!important}
+  .bars{height:56px}
   .tabs{display:none}
-  .bar{padding:9px 12px}
   .toasts{left:12px;right:12px;bottom:56px;max-width:none}
 }
 </style>
@@ -588,7 +595,8 @@ function bar(){
     +'<span style="flex:1"></span>'
     +'<span class="dim desk">分析資料 '+(anaAt?ago(anaAt):"還沒推")+'</span>'
     +'<button class="g" id="th" title="亮暗" aria-label="亮暗切換">'+ico("theme")+'</button>'
-    +'<button class="g" id="out">'+ico("out")+'登出</button>'
+    +'<button class="g" id="out" title="登出" aria-label="登出">'+ico("out")
+    +'<span class="lbl">登出</span></button>'
     +(why?'<div style="flex:1 1 100%;font-size:13px">'+esc(why)
           +(lights.sentinel&&!lights.sentinel.ok?'（哨兵心跳 '+esc(lights.sentinel.at)+'）':'')+'</div>':'')
     +'</div>'
@@ -924,8 +932,9 @@ function barsBox(c){                    // 30 天每日觀看；報表未到的�
   var max=Math.max.apply(null,[1].concat(tot.filter(function(v){ return v!=null; })));
   return '<div class="bars">'+ds.map(function(x,i){
       var v=tot[i];
+      /* ER-163 B8：長條高度用百分比，手機把 .bars 壓矮就跟著縮，不會戳出框 */
       return '<i class="'+(v==null?"none":(pubs[x.d]?"pub":""))+'"'
-        +(v==null?'':' style="height:'+Math.max(2,Math.round(v/max*88))+'px"')
+        +(v==null?'':' style="height:'+Math.max(3,Math.round(v/max*96))+'%"')
         +' title="'+esc(x.d)+(v==null?"：報表還沒到":"："+fmt(v)+" 次")+'"></i>';
     }).join("")+'</div>'
     +'<div class="dim" style="display:flex;justify-content:space-between"><span>'+md(ds[0].d)
@@ -1269,7 +1278,10 @@ function cardModal(){
     return '<button class="g" data-doc="'+esc(r.card)+"|"+j+'">'+ico("doc")+esc(d.label)+'</button>';
   }).join("");
   var okTxt=view.confirm===r.card?("確定放行 "+(r.build||r.card)+"？"):"准";
-  return wrap((r.gate_open?'<div class="k-note">關卡開著，裁「准」會立刻放行 '
+  /* ER-163 B5：放行前要看得到縮圖——這張圖只在登入後的快照裡，不在公開前端 */
+  return wrap((r.thumb?'<img class="shot" src="'+esc(r.thumb)+'" alt="'+esc(r.build||"")
+                        +' 縮圖（機檢挑的那張）">':"")
+    +(r.gate_open?'<div class="k-note">關卡開著，裁「准」會立刻放行 '
                            +esc(r.build||r.card)+'。</div>'
                           :'<div class="k-note">關卡已過・卡未結，裁示只寫回決策卡。</div>')
     +'<div class="stat">提出 '+esc(r.date)+'・期限 '+esc(r.due)+'・逾期預設：'+esc(r.default||"—")+'</div>'
