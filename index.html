@@ -752,8 +752,11 @@ function heroBox(){
     +'・資料 '+hhmm(at)+' 更新</span></div>';
 }
 function homeChs(){ return view.ch?[ch(view.ch)].filter(Boolean):(snap.channels||[]); }
+/* ER-163 B9：還沒開線的頻道（build 底下一支片都沒有）不算進週目標與「還有幾支要完成」。
+   開線與否由後端用 card_pool.channel_opened() 判，前端不另寫一套。 */
+function openedChs(){ return homeChs().filter(function(c){ return c.opened!==false; }); }
 function cardWeek(){
-  var chs=homeChs();
+  var chs=openedChs();
   var done=chs.reduce(function(a,c){return a+(c.done_week||0);},0);
   var target=chs.reduce(function(a,c){return a+(Number(c.weekly_target)||0);},0);
   var ready=(snap.inbox||[]).filter(function(r){
@@ -843,7 +846,10 @@ function asksBox(){
   return '<div class="box"><h2>需要你決定'
     +(rows.length?'<span class="pill big">'+rows.length+'</span>':'')+'</h2>'
     +(rows.length?rows.map(function(r){
-      return '<div class="ask"><div class="thumb"><b>'+esc(r.build||"—")+'</b>縮圖在裡面</div>'
+      /* ER-163 B5：縮圖來自快照（登入後才讀得到），不在公開 repo 裡；沒有圖才退回片號 */
+      return '<div class="ask">'
+        +(r.thumb?'<img class="thumb" src="'+esc(r.thumb)+'" alt="'+esc(r.build||"")+' 縮圖">'
+                 :'<div class="thumb"><b>'+esc(r.build||"—")+'</b>沒抓到縮圖</div>')
         +'<div style="flex:1 1 200px;min-width:0"><div class="k-title">'+esc(askTitle(r))+'</div>'
         +'<div class="dim">'+esc(askMeta(r))+'</div></div>'
         +'<div class="acts" style="margin:0"><button class="p" data-open="'+esc(r.card)+'">'
@@ -864,7 +870,7 @@ function notesBox(){
   var gpu=q.filter(function(x){ return x.kind==="gpu"; }).length;
   if(gpu) ns.push(["var(--accent)",gpu+" 支在等顯卡時窗",
                    (r.gpu||{}).next_open?"下次開 "+(r.gpu||{}).next_open:"時窗現在沒開"]);
-  var left=homeChs().reduce(function(a,c){
+  var left=openedChs().reduce(function(a,c){
     return a+Math.max(0,(Number(c.weekly_target)||0)-(c.done_week||0)); },0);
   if(left) ns.push(["var(--warn)","本週還有 "+left+" 支要完成","做好的片要你放行才算完成"]);
   var band=(r.quota||{}).band;
