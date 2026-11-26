@@ -1,1819 +1,685 @@
 <!doctype html>
-<html lang="zh-Hant" data-theme="auto">
+<html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="robots" content="noindex,nofollow">
-<title>工廠看板</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>公司看板</title>
 <!--
-  老闆看板前端（ER-134 起；ER-164 第三版：公司 → 頻道 → 單支片，三層各一屏）。
-  單檔、零相依、零建置：推到公開 repo wern0531/ops-board，GitHub Pages 服務。
-  紅線：這個檔**不含任何金鑰、資料、本機路徑**。專案網址與 publishable key 由 CEO 給的設定連結
-  （#u=…&k=…）帶進來存 localStorage——片段不會送到任何伺服器，也不進 repo。
-  沒登入什麼都拿不到：所有資料都要帶 Supabase 的登入 JWT 才讀得到（RLS 只開給 authenticated）。
-
-  資訊三層，每層只回答一個問題，而且每層都只有一屏（主畫面不捲，放不下就分頁）：
-    總覽＝「整間公司正常嗎、哪個頻道要我注意？」（四個指標＋一頻道一行的總表）
-    頻道頁＝「這個頻道這週走到哪、成績如何？」（概況／選題池／所有片／成本明細）
-    抽屜＝「這一支片怎麼了、要不要放行？」（不換頁，從總覽或頻道頁任一處點開）
-  主選單四項：總覽／頻道／等你／成本。彈窗只留給「設相關影片」與卡池確認，其他一律抽屜或分頁。
-  圖全部手畫 SVG，不載任何圖表庫。
-  兩列快照：current（20 秒一輪，產線狀態）＋analytics（一天一次，趨勢與圖表）。
-  ER-163：這個檔一改，常駐（看板伺服器）會自己推上線並重啟，不必有人去按。
+  公司看板前端（ER-289）：單檔、零相依、沒有建置步驟。
+  這個檔會被推到公開 repo，所以裡面不放任何金鑰、任何公司資料：
+  - 正式：專案網址與 publishable key 由「設定連結」的 # 片段帶進來存瀏覽器，資料登入後才從 Supabase 讀。
+  - 本機預覽：網址是 localhost 而且 /api/snapshot 有回，就走本機後端，不登入。
 -->
 <style>
-/* ER-164 色票：樣稿那一組（冷調、白卡、一個強調色）。深色色票留著（亮暗切換還在用），
-   但版面只有一套——舊的「桌機一套、手機一套」與舊深色分頁樣式已刪。 */
 :root{
-  --bg:#f3f5f8; --card:#ffffff; --line:#e2e8f0; --soft:#f1f5f9;
-  --ink:#0f172a; --dim:#475569; --dim2:#64748b; --mute:#cbd5e1;
-  --accent:#2563eb; --accent-ink:#ffffff; --accent-soft:#eff4fe;
-  --ok:#15803d; --warn:#b45309; --warn-soft:#fef3c7; --warn-ink:#92400e; --roww:#fffbeb;
-  --bad:#b42318; --series2:#94a3b8;
+  --bg:#f4f2ee; --card:#fff; --ink:#1d1b18; --sub:#6b665e; --line:#e2ddd4; --soft:#f8f6f2;
+  --ok:#2e7d4f; --wait:#b7791f; --stop:#b3372f; --off:#b9b3a8;
+  --accent:#1f4e79; --stop-bg:#fbeceb; --wait-bg:#fdf4e1; --me-bg:#e8f0f8;
 }
-@media (prefers-color-scheme:dark){:root{
-  --bg:#0d0e10; --card:#15171a; --line:#272a2f; --soft:#1d2024;
-  --ink:#e9eaec; --dim:#9aa0a8; --dim2:#8b919a; --mute:#3a3f46;
-  --accent:#8098f9; --accent-ink:#0d0e10; --accent-soft:#1b2033;
-  --ok:#4cc38a; --warn:#d6a23d; --warn-soft:#2a2316; --warn-ink:#e3b55e; --roww:#1f1a10;
-  --bad:#ef6a60; --series2:#8b919a;
-}}
-html[data-theme=light]{--bg:#f3f5f8;--card:#ffffff;--line:#e2e8f0;--soft:#f1f5f9;
-  --ink:#0f172a;--dim:#475569;--dim2:#64748b;--mute:#cbd5e1;
-  --accent:#2563eb;--accent-ink:#ffffff;--accent-soft:#eff4fe;
-  --ok:#15803d;--warn:#b45309;--warn-soft:#fef3c7;--warn-ink:#92400e;--roww:#fffbeb;
-  --bad:#b42318;--series2:#94a3b8}
-html[data-theme=dark]{--bg:#0d0e10;--card:#15171a;--line:#272a2f;--soft:#1d2024;
-  --ink:#e9eaec;--dim:#9aa0a8;--dim2:#8b919a;--mute:#3a3f46;
-  --accent:#8098f9;--accent-ink:#0d0e10;--accent-soft:#1b2033;
-  --ok:#4cc38a;--warn:#d6a23d;--warn-soft:#2a2316;--warn-ink:#e3b55e;--roww:#1f1a10;
-  --bad:#ef6a60;--series2:#8b919a}
 *{box-sizing:border-box}
-html,body{height:100%}
-/* 一屏＝版面的骨架：主畫面永遠不捲，捲動只出現在抽屜裡面。 */
-body{margin:0;overflow:hidden;background:var(--bg);color:var(--ink);
-  font:14px/1.45 "Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;-webkit-text-size-adjust:100%}
-b,strong,.num,.big,td,th{font-variant-numeric:tabular-nums}
-#app{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
-h1{font-size:22px;font-weight:700;margin:0;letter-spacing:-.02em}
-h2{font-size:16px;font-weight:700;margin:0;letter-spacing:-.01em}
-h3{font-size:14px;font-weight:700;margin:0}
-.dim{color:var(--dim2);font-size:12px}
-.big{font-size:26px;font-weight:700;line-height:1.1;letter-spacing:-.02em}
-.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.gap{flex:1}
-.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
-/* 頂列（56px，固定）＋主選單 */
-.top{flex:none;height:56px;display:flex;align-items:center;gap:20px;padding:0 24px;
-  background:var(--card);border-bottom:1px solid var(--line)}
-.top.red{border-bottom-color:var(--bad);box-shadow:inset 0 -2px 0 var(--bad)}
-.brand{font-weight:700;font-size:16px;white-space:nowrap}
-.menu{display:flex;gap:4px}
-.menu button{border:0;background:transparent;color:var(--dim);font:inherit;padding:8px 14px;
-  border-radius:8px;cursor:pointer;white-space:nowrap}
-.menu button:hover{background:var(--soft)}
-.menu button[aria-selected=true]{background:var(--ink);color:var(--bg);font-weight:500}
-.cnt{font-size:12px;color:#fff;background:var(--warn);border-radius:999px;padding:0 7px;margin-left:4px}
-.st{display:flex;align-items:center;gap:8px;color:var(--dim);white-space:nowrap}
-.lite{width:9px;height:9px;border-radius:50%;background:var(--ok);flex:none}
-.lite.w{background:var(--warn)}.lite.b{background:var(--bad)}
-/* 內容區 */
-.wrap{flex:1;min-height:0;display:flex;flex-direction:column;gap:14px;padding:14px 24px 16px}
-.g4{flex:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.card,.panel{background:var(--card);border:1px solid var(--line);border-radius:12px}
-.card{padding:11px 15px;display:flex;align-items:center;gap:14px;min-height:62px}
-.card .lab{color:var(--dim);font-size:12px}
-.card .col{display:flex;flex-direction:column;min-width:0}
-.card .xtra{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
-.main{flex:1;min-height:0;display:flex;gap:14px}
-.panel{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;border-radius:14px}
-.ph{display:flex;align-items:baseline;gap:10px;padding:12px 18px 8px;flex:none}
-.pb{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:0 18px 12px}
-.pf{flex:none;display:flex;justify-content:space-between;align-items:center;gap:10px;
-  padding:9px 18px;border-top:1px solid var(--line);font-size:12px;color:var(--dim2)}
-.side{width:340px;flex:none;display:flex;flex-direction:column;gap:14px;min-height:0}
-.side .panel{flex:none}
-.side .panel.grow{flex:1}
-.pgr{display:flex;align-items:center;gap:4px;margin-left:auto}
-.pgr button{min-height:26px;padding:2px 9px}
-/* 頻道總表 */
-.thead,.chr{display:grid;gap:12px;align-items:center;
-  grid-template-columns:200px 80px minmax(80px,1fr) 150px 56px 96px 86px 12px}
-.thead{padding:7px 18px;font-size:12px;color:var(--dim2);border-top:1px solid var(--soft);
-  border-bottom:1px solid var(--line);flex:none}
-.chr{height:54px;padding:0 18px;border-bottom:1px solid var(--soft);text-decoration:none;
-  color:var(--ink);cursor:pointer;background:transparent;border-left:0;border-right:0;border-top:0;
-  font:inherit;text-align:left;width:100%}
-.chr:hover{background:var(--soft)}
-.chr.warn{background:var(--roww)}
-.chr .nm{display:flex;align-items:center;gap:9px;min-width:0}
-.chr .nmt{min-width:0;display:flex;flex-direction:column}
-.chr .nm b{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.chr.off{color:var(--dim2)}
-.sub{display:none}
-.pill{font-size:11px;font-weight:500;padding:1px 8px;border-radius:999px;white-space:nowrap;
-  color:var(--dim);background:var(--soft);flex:none}
-.pill.w{color:var(--warn-ink);background:var(--warn-soft)}
-.pill.o{color:var(--ok);background:var(--soft)}
-.pill.b{color:#fff;background:var(--bad)}
-.dots{display:flex;gap:4px}
-.dots i{width:16px;height:16px;border-radius:50%;border:2px solid var(--mute);box-sizing:border-box;
-  flex:none}
-.dots i.on{background:var(--accent);border-color:var(--accent)}
-.dots i.wait{border-color:var(--accent)}
-.trk{display:grid;gap:3px}
-.trk i{height:18px;border-radius:4px;background:var(--soft);color:var(--dim2);font-size:11px;
-  font-weight:700;font-style:normal;display:flex;align-items:center;justify-content:center}
-.trk i.on{background:var(--accent);color:var(--accent-ink)}
-.v7{display:flex;align-items:center;gap:7px}
-.v7 .num{font-weight:600;width:46px}
-.spark{width:58px;height:20px;flex:none}
-.bc{position:relative;height:6px;background:var(--soft);border-radius:999px;flex:1;min-width:40px}
-.bc i{display:block;height:100%;background:var(--accent);border-radius:999px}
-.bc i.g{background:var(--ok)}.bc i.r{background:var(--bad)}
-.bc u{position:absolute;top:-4px;width:2px;height:14px;background:var(--dim);text-decoration:none}
-.cost{display:flex;align-items:center;gap:6px}
-/* 等你／提醒 */
-.ask{display:flex;flex-direction:column;gap:8px;padding:9px;border:1px solid var(--line);
-  border-radius:10px}
-.ask .hd{display:flex;gap:10px;min-width:0}
-.ask .tt{font-weight:700;font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;
-  -webkit-box-orient:vertical;overflow:hidden}
-.ask .acts{display:flex;gap:8px}
-.ask .acts button{flex:1;min-height:34px;justify-content:center}
-.thumb{width:96px;height:54px;flex:none;border-radius:6px;background:var(--soft);border:1px solid var(--line);
-  display:flex;align-items:center;justify-content:center;color:var(--dim2);font-size:11px;object-fit:cover}
-.note{display:flex;gap:10px;align-items:flex-start}
-.note u{flex:none;margin-top:6px;width:8px;height:8px;border-radius:50%;text-decoration:none}
-.note b{font-weight:500;font-size:13px;display:block}
-/* 頻道頁 */
-.chtop{flex:none;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.crumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim);min-width:0}
-.crumb button{border:0;background:transparent;color:var(--dim);font:inherit;cursor:pointer;padding:0}
-.crumb button:hover{color:var(--accent)}
-.segs{display:flex;background:var(--soft);border-radius:10px;padding:3px}
-.segs button{border:0;border-radius:8px;padding:5px 13px;background:transparent;color:var(--dim);
-  font:inherit;font-size:13px;cursor:pointer;min-height:30px}
-.segs button[aria-selected=true]{background:var(--card);color:var(--ink);font-weight:500;
-  box-shadow:0 1px 2px rgba(15,23,42,.08)}
-.nn{display:flex;align-items:center;gap:2px}
-.nn button{width:32px;height:32px;justify-content:center;padding:0}
-.c3{flex:1;min-height:0;display:grid;grid-template-columns:380px minmax(0,1fr) 300px;gap:14px}
-/* 欄＝一頁：桌機三欄並排，手機一次一欄（底下一條「‹ 1/3 ›」） */
-.pane{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:14px}
-.pane>.panel{flex:none}
-.pane>.panel.grow{flex:1}
-.pside{flex:none;width:340px}
-.panes{display:none}
-/* ER-165①：七段不平分高度——沒片的段縮成一行（.bx 的 min-height），有片的段照片卡數撐開 */
-.stg{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;justify-content:flex-start}
-.stg .r{display:flex;gap:10px;align-items:flex-start}
-.stg .r>.lb{flex:none;width:52px;display:flex;align-items:center;gap:7px;padding-top:5px;
-  font-size:12px;color:var(--dim2)}
-.stg .r>.lb u{width:7px;height:7px;border-radius:50%;background:var(--mute);text-decoration:none;flex:none}
-.stg .r.on>.lb{color:var(--ink)}
-.stg .r.on>.lb u{background:var(--accent)}
-.stg .bx{flex:1;min-width:0;min-height:26px;display:flex;flex-direction:column;gap:6px;
-  border-left:2px solid var(--soft);padding-left:10px}
-.film{display:flex;gap:9px;align-items:center;padding:7px;border:1px solid var(--line);
-  border-radius:10px;background:var(--card);cursor:pointer;font:inherit;color:var(--ink);text-align:left;
-  width:100%}
-.film:hover{background:var(--soft)}
-.film.w{border-color:var(--warn);background:var(--roww)}
-.film .th{width:64px;height:36px;flex:none;border-radius:5px;object-fit:cover;background:var(--soft);
-  border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
-  color:var(--dim2);font-size:10px}
-.film .tt{font-weight:700;font-size:13px}
-.bars{display:flex;align-items:flex-end;gap:2px;height:122px;border-bottom:1px solid var(--line);flex:none}
-.bars i{flex:1 1 0;display:block;min-height:3px;border-radius:2px 2px 0 0;background:var(--accent);
-  opacity:.45}
-.bars i.pub{opacity:1}
-.bars i.none{opacity:1;height:12%;
-  background:repeating-linear-gradient(135deg,var(--mute) 0 3px,transparent 3px 6px)}
-.vrow{display:grid;grid-template-columns:minmax(0,1fr) 180px 52px;gap:12px;align-items:center;
-  height:40px;border-bottom:1px solid var(--soft);cursor:pointer;background:transparent;border-left:0;
-  border-right:0;border-top:0;font:inherit;color:var(--ink);text-align:left;padding:0;width:100%}
-.vrow:hover{background:var(--soft)}
-.vrow .num{text-align:right;font-weight:700}
-.rows{flex:1;min-height:0;display:flex;flex-direction:column}
-.row{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--soft);
-  min-width:0}
-.row:last-child{border-bottom:0}
-.t3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;flex:none}
-.t3>div{background:var(--soft);border-radius:10px;padding:8px 11px}
-.t3 b{display:block;font-size:17px;font-weight:700}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th,td{border-bottom:1px solid var(--soft);padding:6px 8px;text-align:left;white-space:nowrap}
-th{color:var(--dim2);font-weight:500}
-/* 抽屜＝單支片（不換頁） */
-.dwbg{position:fixed;inset:0;background:rgba(15,23,42,.35);z-index:19}
-.dw{position:fixed;top:0;right:0;bottom:0;width:480px;max-width:100%;z-index:20;background:var(--card);
-  border-left:1px solid var(--line);box-shadow:-12px 0 32px rgba(15,23,42,.1);display:flex;
-  flex-direction:column}
-.dwh{flex:none;display:flex;align-items:flex-start;gap:12px;padding:16px 18px 12px;
-  border-bottom:1px solid var(--line)}
-.dwb{flex:1;min-height:0;overflow:auto;padding:14px 18px;display:flex;flex-direction:column;gap:16px}
-.dwf{flex:none;padding:12px 18px 16px;border-top:1px solid var(--line);display:flex;
-  flex-direction:column;gap:8px}
-.dwf .r{display:flex;gap:8px}
-.dwf button{flex:1;min-height:42px;justify-content:center}
-.dwf button.p{flex:2}
-.sec{display:flex;flex-direction:column;gap:8px}
-.sec .hd{display:flex;align-items:baseline;gap:8px}
-.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.pick{aspect-ratio:16/9;border-radius:8px;border:1px solid var(--line);background:var(--soft);
-  padding:0;cursor:pointer;overflow:hidden;display:flex;align-items:center;justify-content:center;
-  color:var(--dim2);font-size:11px}
-.pick img{width:100%;height:100%;object-fit:cover;display:block}
-.pick[aria-pressed=true]{border:3px solid var(--accent)}
-.steps{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
-.steps>div{display:flex;flex-direction:column;gap:3px;min-width:0}
-.steps i{height:6px;border-radius:3px;background:var(--soft);display:block}
-.steps i.on{background:var(--accent)}
-.steps i.now{background:var(--warn)}
-.steps em{font-size:11px;font-style:normal;color:var(--dim)}
-.steps span{font-size:11px;color:var(--dim2)}
-.lines{display:flex;flex-direction:column;gap:6px}
-.lines>div{display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--soft);
-  border-radius:10px;font-size:13px}
-.lines u{width:8px;height:8px;border-radius:50%;text-decoration:none;flex:none}
-/* 按鈕與輸入 */
-button,.btn{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--mute);
-  background:var(--card);color:var(--ink);padding:6px 12px;min-height:32px;display:inline-flex;
-  align-items:center;gap:6px;text-decoration:none;white-space:nowrap}
-button:hover,.btn:hover{background:var(--soft)}
-button.p,.btn.p{background:var(--ink);border-color:var(--ink);color:var(--bg);font-weight:700}
-button.p:hover{filter:brightness(1.15)}
-button.g{border-color:transparent;background:transparent;color:var(--dim)}
-button.g:hover{background:var(--soft);color:var(--ink)}
-button:disabled{opacity:.4;cursor:default}
-.ico{width:14px;height:14px;flex:0 0 14px;display:block;fill:none;stroke:currentColor;stroke-width:1.7;
-  stroke-linecap:round;stroke-linejoin:round}
-input,select,textarea{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);
-  border-radius:8px;padding:8px 10px;width:100%;min-height:36px}
-input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
-textarea{min-height:64px;resize:vertical}
-.hint{color:var(--bad);font-size:12px}
-.chip{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
-svg{display:block;width:100%;height:auto}
-.stat{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--dim2)}
-/* 彈窗只剩兩個：設相關影片、卡池確認 */
-.doc{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;
-  justify-content:center;z-index:22;padding:12px}
-.doc>div{background:var(--card);width:100%;max-width:560px;max-height:84vh;overflow:auto;
-  border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
-pre{white-space:pre-wrap;word-break:break-word;font:13px/1.6 ui-monospace,"Noto Sans TC",monospace;margin:0}
-.login{max-width:330px;margin:14vh auto;background:var(--card);border:1px solid var(--line);
-  border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
-.err{color:var(--bad);font-size:13px;word-break:break-word}
-.toasts{position:fixed;right:16px;bottom:16px;z-index:30;display:flex;flex-direction:column;gap:8px;
-  max-width:330px}
-.toast{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;
-  font-size:13px;display:flex;gap:8px;align-items:center;box-shadow:0 4px 16px rgba(15,23,42,.1)}
-.toast.bad{border-color:var(--bad)}
-.toast .x{margin-left:auto}
-.spin{width:13px;height:13px;flex:0 0 13px;border:2px solid var(--line);border-top-color:var(--accent);
-  border-radius:50%;animation:sp .7s linear infinite;display:inline-block}
-@keyframes sp{to{transform:rotate(360deg)}}
-.busy{opacity:.5}
-.navb{display:none;flex:none;height:58px;border-top:1px solid var(--line);background:var(--card)}
-.navb button{flex:1;border:0;background:transparent;color:var(--dim);min-height:58px;
-  justify-content:center;font-size:13px;border-radius:0}
-.navb button[aria-selected=true]{color:var(--ink);font-weight:700}
-.mob{display:none}
-/* 1180 以下先讓出訂閱與花費兩欄（它們在頻道頁看得到），總表不擠 */
-@media (max-width:1180px){
-  .thead,.chr{grid-template-columns:180px 76px minmax(70px,1fr) 136px 84px 12px}
-  .c-subs,.c-cost{display:none}
-  .c3{grid-template-columns:330px minmax(0,1fr) 270px}
-}
-/* 375～820：一屏靠換頁，不靠縮小。右欄、桌機選單收起；頻道頁概況三欄變三頁。 */
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;overflow-wrap:anywhere}
+a{color:inherit;text-decoration:none}
+button{font:inherit;cursor:pointer}
+header{background:var(--card);border-bottom:1px solid var(--line)}
+.bar{max-width:1240px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:10px 18px;flex-wrap:wrap}
+.bar h1{font-size:18px;margin:0}
+.nav{display:flex;gap:4px;flex-wrap:wrap}
+.nav a{padding:5px 12px;border-radius:8px;color:var(--sub);white-space:nowrap}
+.nav a.on{background:var(--bg);color:var(--ink);font-weight:600}
+.nav a b{color:var(--accent)}
+.right{margin-left:auto;font-size:13px;color:var(--sub);display:flex;gap:10px;align-items:center}
+.right.bad{color:var(--stop);font-weight:700}
+.right button{border:0;background:none;color:var(--accent);padding:4px}
+main{max-width:1240px;margin:0 auto;padding:16px 20px 90px}
+.backbar{display:flex;align-items:center;gap:12px;margin:0 0 14px;flex-wrap:wrap}
+.back{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 18px 0 12px;border:1.5px solid var(--accent);border-radius:10px;background:var(--card);color:var(--accent);font-weight:700;font-size:16px}
+.crumb{color:var(--sub);font-size:13.5px}
+.crumb b{color:var(--ink)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:var(--off)}
+.d-ok{background:var(--ok)}.d-wait{background:var(--wait)}.d-stop{background:var(--stop)}.d-me{background:var(--accent)}.d-off{background:var(--off)}
+.hello{font-size:22px;font-weight:700;margin:4px 0}
+.hello2{color:var(--sub);margin:0 0 20px;font-size:16px}
+.hello2 b{color:var(--stop)}
+.sec{font-size:17px;font-weight:700;margin:0 0 12px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.sec small{font-weight:400;font-size:13.5px;color:var(--sub)}
+.sec .go{margin-left:auto;font-weight:400;font-size:14px;color:var(--accent)}
+.home{display:grid;grid-template-columns:1.35fr 1fr;gap:24px;align-items:start}
+.todo{display:grid;grid-template-columns:96px 1fr auto;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-left:5px solid var(--c,var(--line));border-radius:12px;padding:12px 16px 12px 12px;margin-bottom:10px}
+.pic{width:96px;height:54px;border-radius:7px;object-fit:cover;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--sub);border:1px solid var(--line)}
+.todo .who{font-size:13px;color:var(--sub)}
+.todo .what{font-size:16.5px;font-weight:600;line-height:1.4}
+.todo .when{font-size:14px;text-align:right;color:var(--sub)}
+.hot{color:var(--stop)!important;font-weight:700}
+.todo.stop{background:var(--stop-bg);border-color:#e6bdb9;border-left-color:var(--stop)}
+.more{display:block;text-align:center;color:var(--accent);padding:10px;font-size:14.5px}
+.biz2{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px}
+.biz2 .t{display:flex;align-items:baseline;gap:10px;font-size:17px;font-weight:700}
+.biz2 .t .go{margin-left:auto;font-weight:400;font-size:14px;color:var(--accent)}
+.biz2 .line{color:var(--sub);font-size:14.5px;margin:4px 0 12px}
+.biz2 .line b{color:var(--ink)}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:99px;padding:3px 11px 3px 4px;font-size:13.5px;background:var(--soft)}
+.pill.bad{border-color:#e6bdb9;background:var(--stop-bg);color:var(--stop);font-weight:600}
+.pill.me{border-color:#bcd0e6;background:var(--me-bg)}
+.pill.off{color:var(--sub)}
+.av{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:700;background:var(--c,#777);flex:none;overflow:hidden}
+.av img{width:100%;height:100%;object-fit:cover;display:block}
+.pill .av,.chtag .av{width:22px;height:22px;font-size:12px}
+.chtag{display:inline-flex;align-items:center;gap:6px}
+.resline{margin-top:22px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 18px;display:flex;gap:6px 26px;flex-wrap:wrap;font-size:14.5px;color:var(--sub);align-items:center}
+.resline b{color:var(--ink)}
+.resline .go{margin-left:auto;color:var(--accent)}
+.tag{display:inline-block;font-size:11.5px;border-radius:5px;padding:0 6px;border:1px solid var(--line);color:var(--sub);white-space:nowrap;line-height:1.6}
+.tag.stop{background:var(--stop-bg);border-color:#e6bdb9;color:var(--stop);font-weight:600}
+.tag.me{background:var(--me-bg);border-color:#bcd0e6;color:var(--accent);font-weight:600}
+.tag.wait{background:var(--wait-bg);border-color:#ead7a6;color:var(--wait)}
+.chgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:22px}
+.ch{display:block;background:var(--card);border:1px solid var(--line);border-top:6px solid var(--c,var(--line));border-radius:12px;padding:16px 18px;min-width:0}
+.ch.bad{background:var(--stop-bg);border-color:#e6bdb9;border-top-color:var(--c)}
+.ch .top{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.ch .av{width:46px;height:46px;font-size:21px}
+.ch .nm{font-size:18px;font-weight:700;line-height:1.25}
+.ch .sub{font-size:13px;color:var(--sub)}
+.now{font-size:15px;padding:8px 10px;border-radius:8px;background:var(--soft);margin-bottom:10px}
+.now.s{background:#fff;color:var(--stop);font-weight:700;border:1px solid #e6bdb9}
+.now.m{background:var(--me-bg);color:var(--accent);font-weight:700}
+.now.w{background:var(--wait-bg);color:var(--wait)}
+.now.o{color:var(--sub)}
+.wk2{font-size:13.5px;color:var(--sub);margin-bottom:10px;display:flex;flex-wrap:wrap;gap:2px 12px}
+.sq{display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:4px;vertical-align:-2px;background:var(--line);border:1px solid transparent}
+.sq.done{background:var(--ok)}.sq.scheduled{background:#9fd0b3}.sq.mine{background:var(--accent)}.sq.doing{background:#c9a24a}
+.sq.wait{background:var(--wait-bg);border:1px dashed var(--wait)}.sq.stop{background:var(--stop)}.sq.idle{background:var(--line)}
+.nums{display:flex;gap:16px;align-items:flex-end;border-top:1px solid var(--line);padding-top:10px}
+.nums .v{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.nums .l{font-size:12px;color:var(--sub)}
+.bars{display:flex;align-items:flex-end;gap:1px;height:34px;flex:1;min-width:60px}
+.bars i{flex:1;background:var(--c,var(--accent));opacity:.75;min-height:2px;position:relative}
+.bars i.mk{opacity:1;background:#1d1b18}
+.bars.big{height:100px;gap:2px;width:100%}
+.chart{position:relative;padding-bottom:var(--mh,0px)}
+.mkl{position:absolute;top:104px;font-size:12.5px;color:var(--ink);white-space:nowrap;line-height:1.3;font-weight:600}
+.mkl::before{content:'▲';display:block;font-size:10px;line-height:1;margin-bottom:1px}
+.mkl.l{transform:none}.mkl.m{transform:translateX(-50%);text-align:center}.mkl.r{transform:translateX(-100%);text-align:right}
+.axis{display:flex;justify-content:space-between;font-size:12.5px;color:var(--sub);margin-top:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0;margin-bottom:14px}
+.card>h2{font-size:15px;margin:0 0 10px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.card>h2 small{font-weight:400;color:var(--sub);font-size:12.5px}
+.row{display:grid;gap:14px;margin-bottom:14px}
+.r6{grid-template-columns:repeat(auto-fill,minmax(150px,190px))}
+.r12{grid-template-columns:1fr 1fr}
+.row .card{margin-bottom:0}
+.kl{font-size:12.5px;color:var(--sub);margin-bottom:6px}
+.kv{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.15}
+.ks{font-size:12.5px;color:var(--sub);margin-top:6px}
+.legend{font-size:12.5px;color:var(--sub);margin-top:8px;display:flex;flex-wrap:wrap;gap:2px 14px}
+.legend .mk{color:var(--stop)}
+.slot{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--soft)}
+.slot .h{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.steps{display:flex;gap:3px;margin-top:8px}
+.steps div{flex:1;min-width:0;text-align:center;font-size:11px;color:var(--sub)}
+.steps i{display:block;height:7px;border-radius:3px;background:var(--line);margin-bottom:3px}
+.steps .dn i{background:var(--ok)}.steps .cur.mine i{background:var(--accent)}.steps .cur.doing i{background:#c9a24a}
+.steps .cur.wait i{background:var(--wait)}.steps .cur.stop i{background:var(--stop)}.steps .cur.scheduled i{background:#9fd0b3}.steps .cur.done i{background:var(--ok)}
+table{border-collapse:collapse;width:100%}
+th{font-size:12.5px;color:var(--sub);font-weight:500;text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top;font-size:14.5px;white-space:nowrap}
+td.t{white-space:normal;min-width:240px}
+tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+td.s{color:var(--sub);font-size:13px;white-space:nowrap}
+.tblwrap{overflow-x:auto}
+.tblscroll{overflow-x:auto;max-width:100%}
+.chgrid.in{margin-bottom:6px}
+.home.one{grid-template-columns:1fr}
+.tl{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;margin-top:6px}
+.tl div{border-radius:8px;padding:6px 8px;background:var(--soft);border:1px solid var(--line);font-size:12.5px}
+.tl b{display:block;font-size:13px}
+details summary{cursor:pointer;color:var(--accent);font-size:13px;padding:4px 0}
+.alert{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.alert:last-child{border-bottom:0}
+.alert small{display:block;color:var(--sub);font-size:12.5px}
+.alert .dot{margin-top:7px;flex:none}
+.cfg{font-size:14px;line-height:1.9}.cfg span{color:var(--sub);display:inline-block;min-width:60px}
+.item{background:var(--card);border:1px solid var(--line);border-top:6px solid var(--c,var(--line));border-radius:12px;padding:18px;max-width:1100px}
+.igrid{display:grid;grid-template-columns:minmax(0,min(560px,42%)) minmax(0,1fr);gap:22px;align-items:start}
+.igrid.noimg{grid-template-columns:minmax(0,1fr);max-width:720px}
+.item.stop{background:var(--stop-bg);border-color:#e6bdb9;border-top-color:var(--stop)}
+.item .big{width:100%;height:auto;border-radius:10px;display:block;border:1px solid var(--line);cursor:zoom-in}
+.zoom[hidden]{display:none}
+.zoom{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:12px;cursor:zoom-out}
+.zoom img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px}
+.zoom span{position:absolute;top:10px;right:14px;color:#fff;font-size:14px;border:1px solid rgba(255,255,255,.7);border-radius:8px;padding:4px 12px}
+.item h2{font-size:21px;line-height:1.4;margin:6px 0 8px}
+.item ul{margin:8px 0;padding-left:20px}
+.item .opts{margin:14px 0}
+.item .opt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer;background:var(--card)}
+.item .opt.on{border-color:var(--accent);background:var(--me-bg)}
+.item .opt input{margin-top:5px}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.btn{min-height:48px;padding:0 22px;border-radius:10px;border:1.5px solid var(--accent);background:var(--card);color:var(--accent);font-weight:700;font-size:16px}
+.btn.primary{background:var(--accent);color:#fff}
+.btn:disabled{opacity:.5;cursor:default}
+.hint{color:var(--sub);font-size:13.5px;margin-top:12px}
+.link{color:var(--accent);text-decoration:underline}
+.empty{color:var(--sub);padding:18px;text-align:center;background:var(--card);border:1px dashed var(--line);border-radius:12px}
+.note{padding:10px 14px;border-radius:10px;background:var(--wait-bg);color:var(--wait);margin-bottom:14px;font-size:14px}
+.note.bad{background:var(--stop-bg);color:var(--stop);font-weight:600}
+.login{max-width:360px;margin:60px auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px}
+.login input{width:100%;font:inherit;padding:10px;margin:6px 0 12px;border:1px solid var(--line);border-radius:8px}
+.banners{position:sticky;top:0;z-index:30}
+.banner{display:flex;gap:12px;align-items:flex-start;padding:12px 20px;background:#23211e;color:#fff;font-size:15.5px;font-weight:600;border-bottom:1px solid rgba(0,0,0,.2)}
+.banner.ok{background:#1f6a41}.banner.bad{background:#a52f27}
+.banner span{flex:1;max-width:1200px;margin:0 auto;width:100%}
+.banner button{border:1px solid rgba(255,255,255,.7);border-radius:8px;background:none;color:#fff;font-size:14px;padding:4px 12px;white-space:nowrap}
+.banner a{color:#fff;text-decoration:underline;margin-left:8px}
 @media (max-width:820px){
-  .desk{display:none!important}
-  .mob{display:flex}
-  .navb{display:flex}
-  .wrap{padding:10px 12px 10px;gap:10px}
-  .g4{gap:6px}
-  .g4 .card{min-height:0;padding:8px 6px;flex-direction:column;gap:2px;align-items:center;
-    text-align:center}
-  .g4 .xtra,.g4 .lab2{display:none}
-  .g4 .big{font-size:17px}
-  .g4 .lab{font-size:11px}
-  .thead{display:none}
-  .chr{grid-template-columns:minmax(0,1fr) auto 56px 10px;height:52px;padding:0 14px;gap:9px}
-  .c-track,.c-subs,.c-cost,.c-next{display:none}
-  .chr .nm b{font-size:14px;max-width:100%}
-  .chr .pill{display:none}
-  .sub{display:block;font-size:11px;color:var(--dim2);max-width:100%;overflow:hidden;
-    text-overflow:ellipsis;white-space:nowrap}
-  .dots i{width:12px;height:12px}
-  .v7 .spark{display:none}
-  .v7 .num{width:auto;font-size:13px}
-  .c3{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr)}
-  .main{flex-direction:column}
-  .pane{display:none}
-  .pane.on{display:flex}
-  .pside{width:auto;flex:1}
-  .panes{display:flex;flex:none;align-items:center;justify-content:center;gap:8px;font-size:12px;
-    color:var(--dim2)}
-  .dw{width:100%;border-left:0}
-  .bars{height:84px}
-  .vrow{grid-template-columns:minmax(0,1fr) 60px}
-  .vrow .bc{display:none}
-  .toasts{left:12px;right:12px;bottom:68px;max-width:none}
-  .top{padding:0 14px;gap:10px}
-  .top .lbl{display:none}
+  .home{grid-template-columns:1fr}
+  .r12{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .igrid{grid-template-columns:minmax(0,1fr)}
+  .item h2{font-size:18px;margin:4px 0}
+  .item{padding:12px}.igrid{gap:8px}
+  .item .opt{padding:7px 10px;margin-bottom:5px}.item .opts{margin:8px 0}.item ul{margin:4px 0}
+  .btns{position:sticky;bottom:0;z-index:6;background:var(--card);margin:10px -12px -12px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);border-radius:0 0 12px 12px;box-shadow:0 -4px 10px rgba(0,0,0,.06)}
+  .item .btn{min-height:46px;flex:1}
+  .bar{gap:2px 10px;padding:8px 16px}.bar h1{font-size:16px}.right{order:2}.nav{order:3;width:100%}.nav a{padding:4px 9px}
+  header.hi .nav{display:none}   /* 一件待決那頁手機上只留返回按鈕，讓按鈕進第一屏 */
+  .back{min-height:40px}.backbar{margin-bottom:8px}
+  main{padding:12px 16px 90px}.bar{padding:10px 16px}
+  .todo{grid-template-columns:72px 1fr;gap:10px}
+  .todo .pic{width:72px;height:41px}
+  .todo .when{grid-column:1/-1;text-align:left;margin-top:-4px}
+  .hello{font-size:20px}
+  .resline .go{margin-left:0}
+  .tblwrap,.tblscroll{overflow:visible}
+  table,thead,tbody{display:block;width:100%}
+  tr{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:10px;background:var(--card)}
+  thead{display:none}
+  td{display:flex;flex-direction:column;border:0;padding:3px 0;text-align:left!important;white-space:normal;min-width:0}
+  td[data-l]::before{content:attr(data-l);color:var(--sub);font-size:12px}
+  td.t{grid-column:1/-1;display:block;font-weight:600;min-width:0}
+  td.t::before{content:none}
 }
 </style>
 </head>
 <body>
+<div class="banners" id="banners"></div>
+<div class="zoom" id="zoom" hidden></div>
 <div id="app"></div>
 <script>
+(function(){
 "use strict";
-var LS="aicc-board";
-var cfg=null, tok=null, snap=null, ana=null, at="", anaAt="", timer=null;
-/* ER-140：view.card 是**卡號**（不是 snap.inbox 的索引——自動重讀後索引會指到別張卡）。
-   notes＝使用者正在寫的「改」意見（重畫不掉）；busy＝已送出等落地的卡號；
-   confirm＝「放行」的第二段確認；toasts＝右下角提示（取代 alert／confirm）。
-   ER-142：poolOpt＝卡池「擋下／解除」的樂觀覆蓋；poolAsk＝擋下／解除的確認彈窗。
-   ER-164：tab＝四個主分頁；ch＝頻道頁現在看哪個頻道（不再是全域濾鏡）；chTab＝頻道內小分頁；
-   pane＝手機版概況看第幾欄；film＝抽屜開著哪一支片；thumb＝抽屜裡選的縮圖；pg＝各清單的頁碼。 */
-var view={tab:"home", ch:"", chTab:"over", pane:0, film:null, thumb:"", pg:{},
-          card:null, doc:null, err:"",
-          notes:{}, busy:{}, confirm:"", hint:"", noteOpen:"", toasts:[],
-          poolOpt:{}, poolAsk:null};
-var toastSeq=0, deferred=false;
-var TABS=[["home","總覽"],["ch","頻道"],["inbox","等你"],["cost","成本"]];
-var CHTABS=[["over","概況"],["pool","選題池"],["all","所有片"],["cost","成本明細"]];
-/* 七段的名字（部門→人話，四字以內才在 375 寬放得下）；順序由後端讀產線宣告給，不寫死。 */
-var DEPT_ZH={"研究":"選題","腳本":"腳本","配音":"配音","視覺":"畫面","剪輯":"合成",
-             "品檢發布":"審片","CEO室":"待放行"};
-/* 一頁幾件：桌機／手機各一組（手機不是縮小而是換頁）。總表超過 10 個頻道就分頁。 */
-var PER={ch:10, ask:6, note:6, vid:8, pool:6, cost:8};
-var PER_M={ch:6, ask:3, note:4, vid:5, pool:4, cost:3};
-function mobile(){ return window.innerWidth<=820; }
-function per(k){ return (mobile()?PER_M:PER)[k]; }
-
-/* ---------- 設定（專案網址＋publishable key）：只從設定連結或 localStorage 來 ---------- */
-function readFragment(){
-  var h=location.hash.replace(/^#/,""); if(!h) return null;
-  var p=new URLSearchParams(h), u=p.get("u"), k=p.get("k");
-  if(!u||!k) return null;
-  var c={url:u.replace(/\/+$/,""),key:k};
-  localStorage.setItem(LS+"-cfg",JSON.stringify(c));
-  history.replaceState(null,"",location.pathname+location.search);   // 片段不留在網址列
-  return c;
-}
-function loadCfg(){
-  return readFragment()||JSON.parse(localStorage.getItem(LS+"-cfg")||"null");
-}
-function loadTok(){ return JSON.parse(localStorage.getItem(LS+"-tok")||"null"); }
-function saveTok(t){ tok=t; t?localStorage.setItem(LS+"-tok",JSON.stringify(t)):localStorage.removeItem(LS+"-tok"); }
-
-/* ---------- Supabase（手寫 fetch，不載任何第三方 SDK） ---------- */
-function api(path,opt){
-  opt=opt||{};
-  var h={apikey:cfg.key,"Content-Type":"application/json"};
-  if(tok&&tok.access_token) h.Authorization="Bearer "+tok.access_token;
-  Object.keys(opt.headers||{}).forEach(function(k){h[k]=opt.headers[k];});
-  return fetch(cfg.url+path,{method:opt.method||"GET",headers:h,
-    body:opt.body?JSON.stringify(opt.body):undefined}).then(function(r){
-    return r.text().then(function(t){
-      var j=null; try{ j=t?JSON.parse(t):null; }catch(e){ j=t; }
-      return {ok:r.ok,status:r.status,data:j};
-    });
-  });
-}
-function login(email,pw){
-  return api("/auth/v1/token?grant_type=password",{method:"POST",body:{email:email,password:pw}})
-    .then(function(r){
-      if(!r.ok) throw new Error((r.data&&(r.data.error_description||r.data.msg||r.data.error))||("登入失敗 "+r.status));
-      saveTok(r.data); return r.data;
-    });
-}
-function refresh(){
-  if(!tok||!tok.refresh_token) return Promise.reject(new Error("沒有登入"));
-  return api("/auth/v1/token?grant_type=refresh_token",{method:"POST",body:{refresh_token:tok.refresh_token}})
-    .then(function(r){ if(!r.ok) throw new Error("登入過期"); saveTok(r.data); return r.data; });
-}
-function authed(path,opt){                       // 401 先換一次 token，再失敗才真的登出
-  return api(path,opt).then(function(r){
-    if(r.status!==401) return r;
-    return refresh().then(function(){ return api(path,opt); });
-  });
-}
-function fetchSnap(auto){                        // 兩列一次拿：current（產線）＋analytics（圖表）
-  return authed("/rest/v1/board_snapshot?key=in.(current,analytics)&select=key,at,data")
-    .then(function(r){
-    if(!r.ok) throw new Error("讀不到資料（"+r.status+"）");
-    if(!r.data||!r.data.length) throw new Error("還沒有快照（本機還沒推第一輪）");
-    r.data.forEach(function(row){
-      if(row.key==="analytics"){ ana=row.data; anaAt=row.at; }
-      else { snap=row.data; at=row.at; }
-    });
-    if(!snap) throw new Error("只有分析資料，還沒有產線快照");
-    view.err=""; afterSnap(auto);
-  }).catch(function(e){ view.err=e.message||String(e); render(auto); });
-}
-/* 重讀之後：開著的彈窗那張卡、抽屜那支片不在了就關掉並說一聲（絕不改成指到別張）。 */
-function afterSnap(auto){
-  /* 卡池：本機那一輪已經把擋下落地（快照跟樂觀值一致）→ 覆蓋清掉，回歸快照為準 */
-  (snap.channels||[]).forEach(function(c){
-    (c.pool||[]).forEach(function(p){
-      var k=c.slug+":"+p.tc;
-      if(view.poolOpt[k]!==undefined&&view.poolOpt[k]===!!p.blocked) delete view.poolOpt[k];
-    });
-  });
-  if(view.card&&!cardOf(view.card)){
-    var gone=view.card;
-    view.card=null; view.confirm=""; view.hint=""; lockScroll(false);
-    delete view.notes[gone];
-    if(!view.busy[gone]) toast("這張卡已被處理（"+gone+"），彈窗已關閉","bad");
-    render(); return;
-  }
-  if(view.film&&!filmOf(view.film)){
-    view.film=null; view.thumb=""; view.confirm="";
-  }
-  render(auto);
-}
-function cardOf(id){
-  var rows=(snap&&snap.inbox)||[];
-  for(var i=0;i<rows.length;i++) if(rows[i].card===id) return rows[i];
-  return null;
-}
-/* ---------- 提示（取代 alert／confirm；桌機右下、手機底部） ---------- */
-function toast(text,kind,retry){
-  var t={id:++toastSeq,text:text,kind:kind||"",retry:retry||null};
-  view.toasts.push(t);
-  if(kind!=="bad") setTimeout(function(){ dropToast(t.id); },4500);
-  renderToasts(); return t.id;
-}
-function dropToast(id){
-  view.toasts=view.toasts.filter(function(t){ return t.id!==id; });
-  renderToasts();
-}
-function toastsHtml(){
-  return '<div class="toasts" id="toasts">'+view.toasts.map(function(t){
-    return '<div class="toast'+(t.kind?" "+t.kind:"")+'">'
-      +(t.kind==="wait"?'<span class="spin"></span>':"")+'<span>'+esc(t.text)+'</span>'
-      +(t.retry?'<button class="g" data-retry="'+t.id+'">重試</button>':"")
-      +'<button class="g x" data-tdrop="'+t.id+'" aria-label="關閉提示">'+ico("x")+'</button></div>';
-  }).join("")+'</div>';
-}
-function renderToasts(){                         // 只換提示那一塊，不整頁重畫
-  var host=document.getElementById("toasts");
-  if(!host){ render(); return; }
-  host.outerHTML=toastsHtml();
-  wireToasts();
-}
-function sendAction(a){
-  return authed("/rest/v1/board_actions",{method:"POST",body:[a],
-    headers:{Prefer:"return=representation"}}).then(function(r){
-    if(!r.ok) throw new Error((r.data&&(r.data.message||r.data.hint))||("送不出去 "+r.status));
-    return r.data[0];
-  });
-}
-function waitAction(id,cb){                      // 等本機那一輪把它落地（applied_at 回填）
-  var n=0;
-  var iv=setInterval(function(){
-    n++;
-    authed("/rest/v1/board_actions?id=eq."+id+"&select=applied_at,result").then(function(r){
-      var row=r.ok&&r.data&&r.data[0];
-      if(row&&row.applied_at){ clearInterval(iv); cb(row.result||"已落地",true); fetchSnap(); }
-      else if(n>40){ clearInterval(iv); cb("本機還沒收到（下一輪會處理）",false); }
-    });
-  },5000);
-}
-
-/* ---------- 送出一個動作：關掉抽屜與彈窗＋那張卡變處理中＋提示 ----------
-   三處「等你」（總覽右欄、頻道頁右欄、抽屜）都是從同一份 snap.inbox 與 view.busy 現算的，
-   所以按一處＝render() 一次＝三處同時變「處理中…」，落地後三處一起消失。 */
-function submit(card,action,label,again){
-  view.busy[card]=true;
-  view.film=null; view.thumb="";
-  closeCard();
-  var tid=toast("已送出："+label,"wait");
-  return sendAction(action).then(function(row){
-    waitAction(row.id,function(res){
-      dropToast(tid); delete view.busy[card];
-      toast("已完成："+res); render();
-    });
-  }).catch(function(e){
-    dropToast(tid); delete view.busy[card];
-    toast("送不出去："+(e.message||e),"bad",again||null);
-    render();
-  });
-}
+var LS="cb-";
+var SNAP=null, SNAPAT="", MODE="", CFG=null, TOK=null, ERR="", NOW_ERR="";
+var UI={choice:{},open:{},from:"",toasts:[],pressing:{},seq:0,lastSig:""};
+var PALETTE=["#2f6fb3","#b4652a","#2e7d64","#8a4f9e","#9a7b1f","#4a5d8f","#a8453f","#3f7f8f"];
 
 /* ---------- 小工具 ---------- */
-var ICONS={
-  x:'<path d="M4 4l8 8M12 4l-8 8"/>',
-  doc:'<path d="M9.3 2H4.7a1 1 0 00-1 1v10a1 1 0 001 1h6.6a1 1 0 001-1V5.2z"/><path d="M9.3 2v3.2h3"/>',
-  theme:'<circle cx="8" cy="8" r="5.4"/><path d="M8 2.6a5.4 5.4 0 010 10.8z" fill="currentColor" stroke="none"/>',
-  out:'<path d="M10.5 11l3-3-3-3M13.5 8H6.5M6.5 2.6H3v10.8h3.5"/>',
-  left:'<path d="M9.5 4L5.5 8l4 4"/>'
-};
-function ico(name){
-  return '<svg class="ico" viewBox="0 0 16 16" aria-hidden="true" focusable="false">'
-    +(ICONS[name]||"")+'</svg>';
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function A(x){return Array.isArray(x)?x:[];}
+function O(x){return x&&typeof x==="object"&&!Array.isArray(x)?x:{};}
+function safe(fn,fallback){try{return fn();}catch(e){return fallback===undefined?"":fallback;}}
+function enc(s){return encodeURIComponent(s);}
+function fmtNum(n){return String(Math.round(n*100)/100).replace(/\B(?=(\d{3})+(?!\d))/g,",");}
+function parseTP(s){ // 單位寫的時間都是台北時間
+  var m=String(s||"").match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if(!m) return null;
+  return Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+(m[6]||0))-8*3600e3;
 }
-function lockScroll(on){ if(document.body) document.body.className=on?"lock":""; }
-function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){
-  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
-function fmt(n){
-  if(n===null||n===undefined||n==="") return "—";
-  var x=Math.round(Number(n)*10)/10;
-  return String(x).replace(/\B(?=(\d{3})+(?!\d))/g,",");
+function tpNow(){return new Date(Date.now()+8*3600e3);}
+function todayTP(){return tpNow().toISOString().slice(0,10);}
+function hhmm(ms){var d=new Date(ms+8*3600e3);return String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0");}
+function ago(sec){return sec<60?"剛剛":sec<3600?Math.round(sec/60)+" 分鐘前":sec<86400?Math.round(sec/3600)+" 小時前":Math.round(sec/86400)+" 天前";}
+
+/* ---------- 資料 ---------- */
+function units(){return A(SNAP&&SNAP.units);}
+function uName(u){return S(O(O(u.status).unit).name)||S(u.name)||(u.has_data?"未命名單位":S(u.unit));}
+function S(v){return v==null||typeof v==="object"?"":String(v);}
+function uColor(u){var c=S(O(O(u.status).unit).color);if(/^#[0-9a-fA-F]{6}$/.test(c)) return c;
+  var i=units().indexOf(u);return PALETTE[(i<0?0:i)%PALETTE.length];}
+function uByKey(k){return units().filter(function(u){return u.key===k;})[0]||null;}
+function isStale(u){
+  var st=O(u.status),sa=st.stale_after_sec,t=parseTP(st.at);
+  return !!(u.has_data&&sa&&t&&(Date.now()-t)/1000>sa);
 }
-function ago(s){
-  var t=Date.parse(String(s||"").replace(" ","T")); if(!t) return "";
-  var m=Math.round((Date.now()-t)/60000);
-  return m<1?"剛剛":(m<60?m+" 分前":Math.floor(m/60)+" 小時前");
+function uState(u){ // 排序與燈號：stop / me / wait / stale / ok / off
+  if(!u.has_data) return "off";
+  var h=S(O(u.status).health);
+  if(h==="stop") return "stop";
+  if(A(u.pending).length) return "me";
+  if(isStale(u)) return "stale";
+  if(h==="wait") return "wait";
+  return "ok";
 }
-function hhmm(s){ var m=String(s||"").match(/(\d{2}):(\d{2})/); return m?m[1]+":"+m[2]:"—"; }
-function md(s){ return String(s||"").slice(5).replace("-","/"); }   // 2026-10-30 → 10/30
-function today(){ return String(at||"").slice(0,10); }
-function ch(slug){ return (snap.channels||[]).filter(function(c){return c.slug===slug;})[0]||null; }
-function pushedAgo(){ var t=Date.parse(at||""); return t?Math.round((Date.now()-t)/1000):null; }
-function anaOf(slug){
-  return ((ana&&ana.channels)||[]).filter(function(x){ return x.slug===slug; })[0]||null;
-}
-function anaChs(slug){
-  var cs=(ana&&ana.channels)||[];
-  return slug?cs.filter(function(c){return c.slug===slug;}):cs;
-}
-function allVideos(slug){
+var ORDER={stop:0,me:1,wait:2,stale:3,ok:4,off:5};
+function allPending(){
   var out=[];
-  anaChs(slug).forEach(function(c){ (c.videos||[]).forEach(function(v){
-    out.push(Object.assign({channel:c.slug,color:c.color},v)); }); });
+  units().forEach(function(u){A(u.pending).forEach(function(p){out.push(Object.assign({},p,{_u:u}));});});
+  out.sort(function(a,b){
+    if(a.urgent!==b.urgent) return a.urgent?-1:1;
+    var da=a.due||"9999",db=b.due||"9999"; if(da!==db) return da<db?-1:1;
+    return (a.at||"")<(b.at||"")?-1:1;
+  });
   return out;
 }
-function vidOf(id){ return allVideos().filter(function(v){return v.video_id===id||v.tc===id;})[0]||null; }
-/* ER-161：近 7 天觀看只算到報表完整那天，報表未到的日子是「未到」不是 0。
-   任何一台算不出完整的 7 天就整個回 null（顯示「量不到」，不給假的漲跌）。 */
-function views7(key,slug){
-  var cs=anaChs(slug), t=0, got=false;
-  for(var i=0;i<cs.length;i++){
-    var v=cs[i][key];
-    if(v==null) return null;
-    t+=v; got=true;
-  }
-  return got?t:null;
+function isHot(p){return p.urgent||(p.due&&String(p.due).slice(0,10)<=todayTP());}
+function pendOf(ukey,id){var u=uByKey(ukey);if(!u)return null;var p=A(u.pending).filter(function(x){return x.id===id;})[0];return p?Object.assign({},p,{_u:u}):null;}
+function avatar(u,size){
+  var c=uColor(u),n=uName(u),st=size?' style="--c:'+c+';width:'+size+'px;height:'+size+'px;font-size:'+Math.round(size*.46)+'px"':' style="--c:'+c+'"';
+  return '<span class="av"'+st+'>'+(u.avatar&&/^data:image\/jpeg;base64,/.test(u.avatar)?'<img alt="" src="'+esc(u.avatar)+'">':esc(n.charAt(0)))+'</span>';
 }
-function reportThrough(){     // 報表到哪天（有資料的台取最舊的那天，才不會高估；沒資料的不算）
-  var cs=anaChs(), out="";
-  for(var i=0;i<cs.length;i++){
-    var d=cs[i].report_through||"";
-    if(!d) continue;
-    if(!out||d<out) out=d;
-  }
-  return out;
-}
-function totalViews(slug){                       // 累計觀看＝各台 Data API statistics.viewCount
-  var cs=anaChs(slug), t=0, got=false;
-  for(var i=0;i<cs.length;i++){
-    var v=(cs[i].live||{}).total_views;
-    if(v==null) continue;
-    t+=v; got=true;
-  }
-  return got?t:null;
-}
-function dailyTot(slug){                         // 逐日觀看（長＋短），報表未到的日子是 null
-  var d=[];
-  anaChs(slug).forEach(function(c){ (c.daily||[]).forEach(function(x,i){
-    d[i]=x.pending?null:((d[i]||0)+(x.long||0)+(x.short||0)); }); });
-  return d;
-}
-function latestSnap(v){                          // 一支片最後一格有資料的快照
-  var got=null;
-  ["48h","7d","28d"].forEach(function(k){
-    var s=(v.snaps||{})[k];
-    if(s&&(s.views!=null||s.avp!=null)) got=Object.assign({key:k},s);
+function chtag(u){return '<span class="chtag">'+avatar(u)+esc(uName(u))+'</span>';}
+function safeUrl(u){return /^https?:\/\//i.test(u||"")?u:"";}
+function ext(url,label){var s=safeUrl(url);return s?'<a class="link" target="_blank" rel="noopener noreferrer" href="'+esc(s)+'">'+esc(label)+'</a>':esc(label);}
+function numOf(v){var s=String(v).replace(/,/g,"").trim();return /^-?\d+(\.\d+)?$/.test(s)?parseFloat(s):null;}
+function fracOf(v){var m=String(v).replace(/,/g,"").trim().match(/^(\d+)\s*[／/]\s*(\d+)$/);return m?[+m[1],+m[2]]:null;}
+function bizTotals(us){ // 只把「大家都寫成數字／分數」的同名欄加起來，看板不認得任何欄的意思
+  var labels=[],by={};
+  us.forEach(function(u){if(!u.has_data)return;A(O(u.status).summary).forEach(function(s){
+    if(!s.label)return; if(!by[s.label]){by[s.label]=[];labels.push(s.label);} by[s.label].push(s.value);});});
+  var out=[];
+  labels.forEach(function(l){
+    var vs=by[l],val="";
+    if(vs.every(function(v){return numOf(v)!==null;})) val=fmtNum(vs.reduce(function(a,v){return a+numOf(v);},0));
+    else if(vs.every(function(v){return fracOf(v);})) val=vs.reduce(function(a,v){return a+fracOf(v)[0];},0)+"／"+vs.reduce(function(a,v){return a+fracOf(v)[1];},0);
+    if(val) out.push({label:l,value:val});
   });
-  return got;
+  return out.slice(0,3);
 }
-function plain(s){            // 洗掉反引號段（都是檔案路徑）、粗體、內部單號、路徑
-  return String(s==null?"":s)
-    .replace(/`[^`]*`/g,"").replace(/\*\*/g,"")
-    .replace(/(?:ER|BE|W|D)-\d+[A-Za-z0-9-]*/g,"")
-    .replace(/\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g,"")      /* 站名與狀態的程式代號 */
-    .replace(/[A-Za-z0-9_.-]+\/[A-Za-z0-9_./-]+/g,"")
-    .replace(/[（(]\s*[）)]/g,"").replace(/／{2,}/g,"／").replace(/\s{2,}/g," ")
-    .replace(/^[\s、，。：；／]+|[\s、，。：；／]+$/g,"");
+function bizUnits(b){return units().filter(function(u){return u.business===b;});}
+function bizState(us){
+  var st=us.map(uState);
+  return st.indexOf("stop")>=0?"stop":st.indexOf("me")>=0?"me":st.indexOf("stale")>=0||st.indexOf("wait")>=0?"wait":"ok";
 }
-/* ER-165③：預定公開日過了還沒公開，就不要再報那個過期日期（片卡、抽屜、總表共用這一支）。
-   st＝那支片現在的白話狀態，已經寫著「等你放行」的地方就不重複講一次。 */
-function pubNote(b,st){
-  var d=(b&&b.target_publish)||"";
-  if(!d) return "";
-  if(d>=today()) return "預定 "+md(d)+" 公開";
-  return st==="等你放行"?"":"等你放行就公開";
+function bars(points,marks,color){
+  var pts=A(points).slice(-30),mx=1,mk={};
+  A(marks).forEach(function(m){mk[m.date]=1;});
+  pts.forEach(function(p){if(p.value>mx)mx=p.value;});
+  return pts.map(function(p){return '<i class="'+(mk[p.date]?"mk":"")+'" title="'+esc(p.date+"："+fmtNum(p.value))+'" style="height:'+Math.max(3,Math.round(p.value/mx*100))+'%"></i>';}).join("");
 }
-function dayDiff(a,b){
-  var x=Date.parse(String(a||"").replace(" ","T")), y=Date.parse(String(b||"").replace(" ","T"));
-  return (x&&y)?Math.round((y-x)/86400000):null;
+function chart(pts,marks,color){
+  /* 標記放在它指的那一根長條正下方（靠邊就改成對齊邊），同一排放不下的錯到下一排；那一根長條用深色 */
+  var n=pts.length,idx={};
+  pts.forEach(function(p,i){idx[p.date]=i;});
+  var ms=A(marks).filter(function(m){return idx[m.date]!==undefined;}).sort(function(a,b){return idx[a.date]-idx[b.date];});
+  var rowEnd=[],h="";
+  ms.forEach(function(m){
+    var i=idx[m.date],pos=(i+.5)/n*100,txt=m.date.slice(5)+" "+m.text,w=txt.length*1.5+1.5;   /* 估一個字約 1.5% 寬 */
+    var al=pos<w/2?"l":pos>100-w/2?"r":"m";
+    var lo=al==="l"?pos:al==="r"?pos-w:pos-w/2,hi=lo+w,row=0;
+    while(rowEnd[row]!==undefined&&rowEnd[row]>lo-1) row++;
+    rowEnd[row]=hi;
+    h+='<div class="mkl '+al+'" style="left:'+pos+'%;top:'+(104+row*34)+'px">'+esc(txt)+'</div>';
+  });
+  var mh=ms.length?(rowEnd.length*34+4):0;
+  return '<div class="chart" style="--mh:'+mh+'px"><div class="bars big" style="--c:'+color+'">'+bars(pts,marks)+'</div>'+h+'</div>';
+}
+function sumUsage(){
+  var eq=0,cash=0,n=0,m=0;
+  units().forEach(function(u){var us=O(O(u.status).usage);if(!u.has_data)return;
+    var hasE=typeof us.week_equiv_usd==="number",hasC=typeof us.week_cash_usd==="number";
+    if(hasE){eq+=us.week_equiv_usd;} if(hasC){cash+=us.week_cash_usd;} if(hasE||hasC)n++; else m++;});
+  return {eq:eq,cash:cash,n:n,missing:m};
 }
 
-/* ---------- 手畫 SVG（不載圖表庫） ---------- */
-function niceMax(v){
-  if(!v||v<=0) return 1;
-  var p=Math.pow(10,Math.floor(Math.log(v)/Math.LN10)), n=v/p;
-  return p*(n<=1?1:n<=2?2:n<=5?5:10);
+/* ---------- 路由 ---------- */
+function route(){
+  var h=location.hash||"#/",p=h.replace(/^#\/?/,"").split("/").map(function(x){try{return decodeURIComponent(x);}catch(e){return x;}});
+  var k=p[0]||"home";
+  return {name:k,a:p[1]||"",b:p[2]||"",hash:h};
 }
-function svgLines(labels,series,marks,h,xf){
-  h=h||260; xf=xf||function(s){ return s; };
-  var W=1000, L=48, R=12, T=14, B=26;
-  var max=1;
-  series.forEach(function(s){ (s.pts||[]).forEach(function(v){ if(v>max) max=v; }); });
-  max=niceMax(max);
-  var n=labels.length, iw=W-L-R, ih=h-T-B;
-  var X=function(i){ return L+(n<2?iw/2:iw*i/(n-1)); };
-  var Y=function(v){ return T+ih-ih*(Number(v||0)/max); };
-  var g="";
-  for(var k=0;k<=4;k++){
-    var val=max*k/4, y=Y(val);
-    g+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" stroke="currentColor" stroke-opacity=".16"/>'
-      +'<text x="'+(L-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="12" fill="currentColor" fill-opacity=".55">'
-      +fmt(val)+'</text>';
+function href(name,a,b){return "#/"+[name,a,b].filter(function(x){return x;}).map(enc).join("/");}
+function itemHref(p){return href("item",p._u.key,p.id);}
+
+/* ---------- 畫面 ---------- */
+function header(r){
+  var n=allPending().length;
+  var navs=['<a href="#/" class="'+(r.name==="home"?"on":"")+'">首頁</a>',
+    '<a href="#/todo" class="'+(r.name==="todo"||r.name==="item"?"on":"")+'">等你決定'+(n?' <b>'+n+'</b>':'')+'</a>'];
+  A(SNAP&&SNAP.businesses).forEach(function(b){navs.push('<a href="'+href("biz",b)+'" class="'+((r.name==="biz"&&r.a===b)||(r.name==="unit"&&uByKey(r.a)&&uByKey(r.a).business===b)?"on":"")+'">'+esc(b)+'</a>');});
+  navs.push('<a href="#/res" class="'+(r.name==="res"?"on":"")+'">資源與成本</a>');
+  var right="";
+  if(SNAP){
+    var age=snapAge();
+    var bad=age>400;
+    right='<div class="right'+(bad?' bad':'')+'">'+(bad?'資料 '+ago(age)+'的，後端可能停了':'資料 '+esc(S(SNAP.at).slice(11,16))+(age>90?'（'+ago(age)+'）':''))+
+      (MODE==="supabase"?'<button data-act="logout">登出</button>':'<span>本機預覽</span>')+'</div>';
   }
-  [0,Math.floor((n-1)/2),n-1].forEach(function(i,j){
-    if(i<0||!labels[i]) return;
-    g+='<text x="'+X(i)+'" y="'+(h-7)+'" text-anchor="'+(j===0?"start":j===2?"end":"middle")
-      +'" font-size="12" fill="currentColor" fill-opacity=".55">'+esc(xf(String(labels[i])))+'</text>';
+  return '<header class="'+(r.name==="item"?"hi":"")+'"><div class="bar"><h1>公司看板</h1><nav class="nav">'+navs.join("")+'</nav>'+right+'</div></header>';
+}
+function snapAge(){var t=SNAPAT?Date.parse(SNAPAT):parseTP(SNAP&&SNAP.at);return t?Math.max(0,(Date.now()-t)/1000):0;}
+function back(label,to){return '<div class="backbar"><a class="back" href="'+esc(to)+'" data-back="1">‹ '+esc(label)+'</a></div>';}
+
+function todoRow(p){
+  var u=p._u,hot=isHot(p);
+  var pic=p.image&&/^data:image\/jpeg;base64,/.test(p.image)?'<img class="pic" alt="" src="'+esc(p.image)+'">':'<div class="pic">'+(p.urgent?"!":esc(uName(u).charAt(0)))+'</div>';
+  return '<a class="todo'+(p.urgent?" stop":"")+'" style="--c:'+uColor(u)+'" href="'+itemHref(p)+'">'+pic+
+    '<div><div class="who">'+chtag(u)+(p.kind?'　<span class="tag'+(p.urgent?" stop":" me")+'">'+esc(p.kind)+'</span>':'')+'</div><div class="what">'+esc(p.title)+'</div></div>'+
+    (p.due_text?'<div class="when'+(hot?" hot":"")+'">'+esc(p.due_text)+'</div>':'')+'</a>';
+}
+function pHome(){
+  var all=allPending(),us=units();
+  var stop=us.filter(function(u){return uState(u)==="stop";}).length;
+  var stale=us.filter(isStale).length;
+  var hotN=all.filter(isHot).length;
+  var d=tpNow(),wk="日一二三四五六"[d.getUTCDay()],hr=d.getUTCHours();
+  var parts=[];
+  if(stop) parts.push('<b>'+stop+' 個單位停線</b>');
+  if(all.length) parts.push(all.length+' 件等你決定'+(hotN?'，其中 '+hotN+' 件今天到期':''));
+  if(stale) parts.push(stale+' 個單位資料過期');
+  var line=parts.length?parts.join("，")+"。其餘都在照常跑。":"全部照常跑，沒有等你決定的事。";
+  if(!us.length) line="還沒有任何單位。";
+  var h='<p class="hello">週'+wk+' '+String(d.getUTCMonth()+1).padStart(2,"0")+'-'+String(d.getUTCDate()).padStart(2,"0")+'　'+(hr<12?"早上":hr<18?"下午":"晚上")+'</p><p class="hello2">'+line+'</p>';
+  var left='<div class="sec">等你決定 <small>'+(all.length>5?'最急的 5 件':'')+'</small>'+(all.length?'<a class="go" href="#/todo">看全部 '+all.length+' 件 →</a>':'')+'</div>';
+  left+=all.length?all.slice(0,5).map(todoRow).join("")+(all.length>5?'<a class="more" href="#/todo">還有 '+(all.length-5)+' 件　看全部 →</a>':""):'<div class="empty">沒有等你決定的事</div>';
+  var right='<div class="sec">各事業</div>';
+  A(SNAP.businesses).forEach(function(b){
+    var bu=bizUnits(b),st=bizState(bu),tot=bizTotals(bu);
+    var expand=units().length<=4;
+    right+='<div class="biz2"><a class="t" href="'+href("biz",b)+'"><span><span class="dot d-'+st+'"></span>'+esc(b)+'事業</span><span class="go">進去看 →</span></a>'+
+      '<div class="line">'+bu.length+' 個單位'+tot.map(function(t){return '　'+esc(t.label)+' <b>'+esc(t.value)+'</b>';}).join("")+'</div>'+(expand?'<div class="chgrid in">'+bu.slice().sort(function(a,b2){return ORDER[uState(a)]-ORDER[uState(b2)];}).map(unitCard).join("")+'</div></div>':'<div class="pills">'+
+      bu.slice().sort(function(a,b2){return ORDER[uState(a)]-ORDER[uState(b2)];}).map(function(u){
+        var s=uState(u);return '<a class="pill'+(s==="stop"?" bad":s==="me"?" me":s==="off"?" off":"")+'" href="'+href("unit",u.key)+'">'+avatar(u)+esc(uName(u))+(s==="stop"?"　停線":s==="off"?"　還沒有資料":s==="stale"?"　資料過期":"")+'</a>';}).join("")+'</div></div>');
   });
-  (marks||[]).forEach(function(m){
-    if(m.i<0||m.i>=n) return;
-    g+='<line x1="'+X(m.i)+'" y1="'+T+'" x2="'+X(m.i)+'" y2="'+(h-B)+'" stroke="'+(m.color||"currentColor")
-      +'" stroke-width="1.5" stroke-dasharray="3 3" stroke-opacity=".7"><title>'+esc(m.label||"")+'</title></line>';
-  });
-  series.forEach(function(s){
-    var pts=s.pts||[]; if(!pts.length) return;
-    var d=pts.map(function(v,i){ return (i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1); }).join(" ");
-    g+='<path d="'+d+'" fill="none" stroke="'+s.color+'" stroke-width="2.2" stroke-linejoin="round"/>';
-  });
-  return '<svg viewBox="0 0 '+W+' '+h+'" role="img">'+g+'</svg>';
+  var res=sumUsage(),mc=O(SNAP.machine),rl=[];
+  if(res.n) rl.push('本週用量等價 <b>US$'+fmtNum(res.eq)+'</b>');
+  if(res.n) rl.push('本週現金 <b>US$'+fmtNum(res.cash)+'</b>');
+  if(mc.main_free_gb!=null) rl.push((mc.main_name||"主")+' 槽剩 <b>'+fmtNum(mc.main_free_gb)+' GB</b>');
+  if(mc.backup_free_gb!=null) rl.push('備份碟剩 <b>'+fmtNum(mc.backup_free_gb)+' GB</b>');
+  rl.push('<a class="go" href="#/res">資源與成本 →</a>');
+  var one=!all.length;
+  return h+'<div class="home'+(one?" one":"")+'">'+(one?'':'<div>'+left+'</div>')+'<div>'+right+'</div></div><div class="resline">'+rl.map(function(x){return x.indexOf("<a ")===0?x:'<span>'+x+'</span>';}).join("")+'</div>';
 }
-function legend(series){
-  return '<div class="stat">'+series.map(function(s){
-    return '<span><span class="chip" style="background:'+s.color+'"></span>'+esc(s.name)+'</span>';
-  }).join("")+'</div>';
+function pTodo(){
+  var all=allPending();
+  return back("回首頁","#/")+'<div class="sec">等你決定 <small>全部 '+all.length+' 件，最急的在上面</small></div>'+
+    (all.length?all.map(todoRow).join(""):'<div class="empty">沒有等你決定的事</div>');
 }
-function spark(pts,color){
-  pts=(pts||[]).filter(function(v){return v!=null;});
-  if(pts.length<2) return '';
-  var W=112,H=26,max=Math.max.apply(null,pts)||1,min=Math.min.apply(null,pts);
-  var rng=(max-min)||1;
-  var d=pts.map(function(v,i){
-    return (i?"L":"M")+(i*(W-2)/(pts.length-1)+1).toFixed(1)+" "+(H-1-(v-min)/rng*(H-3)).toFixed(1);
-  }).join(" ");
-  return '<svg class="spark" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" '
-    +'aria-label="觀看趨勢"><path d="'+d+'" fill="none" stroke="'+(color||"var(--accent)")
-    +'" stroke-width="1.8"/></svg>';
+function pItem(r){
+  var p=pendOf(r.a,r.b),to=UI.from&&UI.from.indexOf("#/item")!==0?UI.from:"#/todo";
+  if(!p) return back("回上一頁",to)+'<div class="empty">這一件已經處理掉了，或不在了。</div>';
+  var u=p._u,key=u.key+"|"+p.id,hot=isHot(p);
+  var sel=UI.choice[key];
+  var hasImg=p.image&&/^data:image\/jpeg;base64,/.test(p.image);
+  var h=back("回上一頁",to)+'<div class="item'+(p.urgent?" stop":"")+'" style="--c:'+uColor(u)+'"><div class="igrid'+(hasImg?"":" noimg")+'">';
+  if(hasImg) h+='<div><img class="big" alt="縮圖，點一下放大" data-act="zoom" src="'+esc(p.image)+'"></div>';
+  h+='<div>';
+  h+='<div>'+chtag(u)+(p.kind?'　<span class="tag'+(p.urgent?" stop":" me")+'">'+esc(p.kind)+'</span>':'')+(p.due_text?'　<span class="'+(hot?"hot":"")+'">'+esc(p.due_text)+'</span>':'')+'</div>';
+  h+='<h2>'+esc(p.title)+'</h2>';
+  if(A(p.lines).length) h+='<ul>'+A(p.lines).map(function(x){return '<li>'+esc(x)+'</li>';}).join("")+'</ul>';
+  if(p.link&&safeUrl(p.link.url)) h+='<p>'+ext(p.link.url,p.link.label+" →")+'</p>';
+  var ch=p.choose;
+  if(ch&&A(ch.options).length){
+    if(!sel||!ch.options.some(function(o){return o.key===sel;})) sel=ch.options[0].key;
+    h+='<div class="opts">'+(ch.label?'<div class="kl">'+esc(ch.label)+'（選一個）</div>':'')+ch.options.map(function(o){
+      return '<label class="opt'+(o.key===sel?" on":"")+'"><input type="radio" name="ch" value="'+esc(o.key)+'"'+(o.key===sel?" checked":"")+' data-act="choose"><span>'+esc(o.text)+'</span></label>';}).join("")+'</div>';
+  }
+  if(p.details&&A(p.details.lines).length) h+='<details data-k="'+esc(key)+'"'+(UI.open[key]?" open":"")+'><summary>'+esc(p.details.label)+'</summary><ul>'+p.details.lines.map(function(x){return '<li>'+esc(x)+'</li>';}).join("")+'</ul></details>';
+  var busy=!!UI.pressing[key];
+  if(A(p.buttons).length) h+='<div class="btns">'+p.buttons.map(function(b){return '<button class="btn'+(b.primary?" primary":"")+'" data-act="press" data-b="'+esc(b.key)+'"'+(busy?" disabled":"")+'>'+esc(b.text)+'</button>';}).join("")+'</div>';
+  if(p.hint) h+='<div class="hint">'+esc(p.hint)+'</div>';
+  return h+'</div></div></div>';
 }
-function bc(pct,cls,mark){                        // 一根進度條（可帶刻線＝預測）
-  var w=pct==null?0:Math.min(100,Math.max(2,pct));
-  return '<span class="bc"><i class="'+(cls||"")+'" style="width:'+w.toFixed(0)+'%"></i>'
-    +(mark!=null?'<u style="left:'+Math.min(100,Math.max(0,mark)).toFixed(0)+'%"></u>':'')+'</span>';
+function unitNow(u){
+  var st=O(u.status),s=uState(u),hl=S(st.headline);
+  if(!u.has_data) return '<div class="now o">還沒有資料</div>';
+  var n=A(u.pending).length,cls=s==="stop"?"s":s==="me"?"m":s==="wait"?"w":"";
+  var txt=hl||(s==="stop"?"停線":s==="wait"?"在等":"正常");
+  if(s==="me"&&n) txt+="｜"+n+" 件等你";
+  return '<div class="now '+cls+'">'+esc(txt)+'</div>'+(isStale(u)?'<div class="now w">資料過期：這一台已經很久沒回報</div>':'');
 }
-function barCell(v,max,pred,suf){                 // 表格裡的一根條＋刻線（刻線＝阿題預測）
-  if(v==null) return '<td class="dim">量不到</td>';
-  return '<td><div style="display:flex;align-items:center;gap:6px">'
-    +bc(100*v/(max||1),"",pred!=null&&max?100*pred/max:null)
-    +'<span class="dim">'+fmt(v)+(suf||"")+'</span></div></td>';
+function unitCard(u){
+    var st=O(u.status),un=O(st.unit),s=uState(u);
+    var sub=[un.topic?"題材："+un.topic:"",un.cadence].filter(function(x){return x;}).join("｜");
+    var slots=A(st.slots).map(function(sl){return '<span><i class="sq '+esc(sl.state)+'"></i>'+esc((sl.when||"")+(sl.id?" "+sl.id:""))+'</span>';}).join("");
+    var sm=A(st.summary).slice(0,3).map(function(m){return '<div><div class="v">'+esc(m.value)+'</div><div class="l">'+esc(m.label)+'</div></div>';}).join("");
+    var bs=st.daily&&A(st.daily.points).length?'<div class="bars" style="--c:'+uColor(u)+'">'+bars(st.daily.points,st.daily.marks)+'</div>':"";
+    return '<a class="ch'+(s==="stop"?" bad":"")+'" style="--c:'+uColor(u)+'" href="'+href("unit",u.key)+'"><div class="top">'+avatar(u)+'<div><div class="nm">'+esc(uName(u))+'</div><div class="sub">'+esc(sub)+'</div></div></div>'+
+      unitNow(u)+(slots?'<div class="wk2"><span>本週</span>'+slots+'</div>':"")+((sm||bs)?'<div class="nums">'+sm+bs+'</div>':"")+'</a>';
 }
-function delta(now,prev){
-  if(now==null||prev==null||!prev) return "";
-  var p=(now-prev)/Math.abs(prev)*100;
-  var cls=p>1?"ok":(p<-1?"bad":"dim"), mark=p>1?"▲":(p<-1?"▼":"＝");
-  return '<span class="'+cls+'" style="font-size:12px">'+mark+Math.abs(p).toFixed(0)+'%</span>';
+function pBiz(r){
+  var b=r.a,bu=bizUnits(b);
+  if(!bu.length) return back("回首頁","#/")+'<div class="empty">沒有這個事業</div>';
+  var tot=bizTotals(bu);
+  var sorted=bu.slice().sort(function(a,c){return ORDER[uState(a)]-ORDER[uState(c)];});
+  var h=back("回首頁","#/")+'<div class="crumb">首頁　›　<b>'+esc(b)+'事業</b>　｜　'+bu.length+' 個單位'+tot.map(function(t){return '　'+esc(t.label)+' '+esc(t.value);}).join("")+'</div><br>';
+  h+='<div class="sec">單位 <small>一個單位一張卡；有狀況的排前面；點卡片進那一台</small></div><div class="chgrid">';
+  sorted.forEach(function(u){h+=unitCard(u);});
+  h+='</div>'+recent(bu);
+  return h;
+}
+function recent(bu){
+  var cols=[],rows=[];
+  bu.forEach(function(u,ui){var w=O(O(u.status).works);A(w.columns).forEach(function(c){if(c&&cols.indexOf(c)<0)cols.push(c);});
+    A(w.rows).forEach(function(rw,i){rows.push({u:u,r:rw,w:w,ord:ui*1000+i});});});
+  if(!rows.length) return "";
+  rows.sort(function(a,b){var x=a.r.when||"",y=b.r.when||"";return x===y?a.ord-b.ord:(x<y?1:-1);});
+  rows=rows.slice(0,20);cols=cols.slice(0,8);
+  var h='<div class="sec">最近的產出 <small>各單位放一起比，新的在上</small></div><div class="card"><div class="tblscroll"><table><thead><tr><th>單位</th><th>標題</th><th>時間</th>'+cols.map(function(c){return '<th class="n">'+esc(c)+'</th>';}).join("")+'</tr></thead><tbody>';
+  rows.forEach(function(x){
+    h+='<tr><td data-l="單位">'+chtag(x.u)+'</td><td class="t">'+ext(x.r.url,(x.r.id?x.r.id+" ":"")+x.r.title)+'</td><td class="s" data-l="時間">'+esc(x.r.when)+'</td>'+cols.map(function(c){
+      var i=A(x.w.columns).indexOf(c),v=i>=0?S(A(x.r.cells)[i]):"";return v?'<td class="n" data-l="'+esc(c)+'">'+esc(v)+'</td>':'<td class="n" data-l="'+esc(c)+'">—</td>';}).join("")+'</tr>';});
+  return h+'</tbody></table></div></div>';
+}
+function pUnit(r){
+  var u=uByKey(r.a);
+  if(!u) return back("回首頁","#/")+'<div class="empty">沒有這一台</div>';
+  var st=O(u.status),un=O(st.unit),s=uState(u),to=href("biz",u.business);
+  var h=back("回"+u.business+"事業",to);
+  h+='<div class="crumb">首頁　›　'+esc(u.business)+'事業　›　<b>'+esc(uName(u))+'</b>　<span class="dot d-'+(s==="stale"?"wait":s)+'" style="margin-left:8px"></span>'+
+    ({stop:"停線",me:"有事等你",wait:"在等",stale:"資料過期",ok:"正常",off:"還沒有資料"}[s])+
+    (un.platform?'　｜　'+esc(un.platform):'')+(un.cadence?'　'+esc(un.cadence):'')+(safeUrl(un.url)?'　｜　'+ext(un.url,"頻道頁"):'')+'</div><br>';
+  if(!u.has_data) return h+'<div class="empty">這一台還沒有資料</div>';
+  h+=unitNow(u);
+  var pe=A(u.pending).map(function(p){return Object.assign({},p,{_u:u});});
+  if(pe.length) h+='<div class="sec">等你決定</div>'+pe.map(todoRow).join("");
+  if(A(st.metrics).length) h+='<div class="row r6">'+st.metrics.map(function(m){return '<div class="card"><div class="kl">'+esc(m.label)+'</div><div class="kv">'+esc(m.value)+'</div>'+(m.sub?'<div class="ks">'+esc(m.sub)+'</div>':'')+'</div>';}).join("")+'</div>';
+  var dl=st.daily;
+  var hasSlots=A(st.slots).length>0;
+  if(dl&&A(dl.points).length){
+    var pts=dl.points.slice(-30);
+    h+='<div class="card"><h2>'+esc(dl.label)+' <small>最近 '+pts.length+' 天</small></h2>'+chart(pts,dl.marks,uColor(u))+'<div class="axis"><span>'+esc(pts[0].date.slice(5))+'</span><span>'+esc(pts[pts.length-1].date.slice(5))+'</span></div></div>';
+  }
+  if(hasSlots){
+    h+='<div class="card"><h2>本週每一格</h2>'+st.slots.map(function(sl){
+      var stp=sl.steps,sh="";
+      if(stp&&A(stp.names).length){
+        sh='<div class="steps">'+stp.names.map(function(n,i){var cl=i<stp.done?"dn":(stp.current===i?"cur "+esc(sl.state):"");return '<div class="'+cl+'"><i></i>'+esc(n)+'</div>';}).join("")+'</div>';
+      }
+      return '<div class="slot"><div class="h"><i class="sq '+esc(sl.state)+'"></i><b>'+esc(sl.when)+'</b>'+(sl.id?'<span>'+esc(sl.id)+'</span>':'')+(sl.title?'<span>'+esc(sl.title)+'</span>':'')+'</div>'+(sl.text?'<div>'+esc(sl.text)+'</div>':'')+sh+'</div>';}).join("")+'</div>';
+  }
+  var w=st.works;
+  if(w&&A(w.rows).length){
+    var cols=A(w.columns);
+    h+='<div class="card"><h2>出過的東西 <small>新的在上</small></h2><div class="tblscroll"><table><thead><tr><th>標題</th><th>時間</th>'+cols.map(function(c){return '<th class="n">'+esc(c)+'</th>';}).join("")+'</tr></thead><tbody>'+w.rows.map(function(rw){
+      var tl=A(rw.stages).length?'<details data-k="w|'+esc(u.key+rw.id)+'"'+(UI.open["w|"+u.key+rw.id]?" open":"")+'><summary>怎麼做出來的</summary><div class="tl">'+rw.stages.map(function(g){return '<div><b>'+esc(g.name)+'</b>'+esc(g.text)+'</div>';}).join("")+'</div></details>':"";
+      return '<tr><td class="t">'+ext(rw.url,(rw.id?rw.id+" ":"")+rw.title)+tl+'</td><td class="s" data-l="時間">'+esc(rw.when)+'</td>'+cols.map(function(c,i){return '<td class="n" data-l="'+esc(c)+'">'+esc(A(rw.cells)[i]||"—")+'</td>';}).join("")+'</tr>';}).join("")+'</tbody></table></div></div>';
+  }
+  var lg=A(st.log),se=A(st.settings),blocks="";
+  if(lg.length) blocks+='<div class="card"><h2>停線與等待紀錄</h2>'+lg.map(function(e){return '<div class="alert"><span class="dot d-'+esc(e.kind)+'"></span><div>'+esc((e.at?e.at+"　":"")+e.text)+(e.sub?'<small>'+esc(e.sub)+'</small>':'')+'</div></div>';}).join("")+'</div>';
+  if(se.length) blocks+='<div class="card"><h2>這一台的設定</h2><div class="cfg">'+se.map(function(e){return (e.label?'<span>'+esc(e.label)+'</span>':'')+esc(e.text);}).join("<br>")+'</div></div>';
+  if(blocks) h+='<div class="row r12">'+blocks+'</div>';
+  return h;
+}
+function pRes(){
+  var u=sumUsage(),mc=O(SNAP.machine);
+  var h=back("回首頁","#/")+'<div class="sec">資源與成本</div>';
+  h+='<div class="row r6"><div class="card"><div class="kl">本週用量（等價）</div><div class="kv">'+(u.n?'US$'+fmtNum(u.eq):'—')+'</div><div class="ks">'+u.n+' 個單位有回報'+(u.missing?'，'+u.missing+' 個沒寫':'')+'</div></div>'+
+    '<div class="card"><div class="kl">本週現金</div><div class="kv">'+(u.n?'US$'+fmtNum(u.cash):'—')+'</div></div>'+
+    (mc.main_free_gb!=null?'<div class="card"><div class="kl">'+esc(mc.main_name||"主")+' 槽剩</div><div class="kv">'+fmtNum(mc.main_free_gb)+' <small>GB</small></div>'+(mc.main_total_gb?'<div class="ks">共 '+fmtNum(mc.main_total_gb)+' GB</div>':'')+'</div>':'')+
+    (mc.backup_free_gb!=null?'<div class="card"><div class="kl">備份碟剩</div><div class="kv">'+fmtNum(mc.backup_free_gb)+' <small>GB</small></div></div>':'')+'</div>';
+  var rows=units().filter(function(x){return x.has_data&&x.status&&x.status.usage;});
+  h+='<div class="card"><h2>逐台列出</h2>'+(rows.length?rows.map(function(x){var us=x.status.usage;
+    return '<div class="alert"><div>'+chtag(x)+'　<small style="display:inline">'+esc(x.business)+'</small><div>'+esc(us.text||"")+'</div>'+
+      ((typeof us.week_equiv_usd==="number"||typeof us.week_cash_usd==="number")?'<small>等價 '+(typeof us.week_equiv_usd==="number"?'US$'+fmtNum(us.week_equiv_usd):'—')+'　現金 '+(typeof us.week_cash_usd==="number"?'US$'+fmtNum(us.week_cash_usd):'—')+'</small>':'')+'</div></div>';}).join(""):'<div class="empty">還沒有單位回報用量</div>')+'</div>';
+  return h;
 }
 
-/* ---------- 分頁器：清單一律分頁，主畫面不捲 ---------- */
-function pages(n,per){ return Math.max(1,Math.ceil(n/per)); }
-function pgAt(k,n,per){
-  var p=view.pg[k]||0, m=pages(n,per)-1;
-  return p>m?m:(p<0?0:p);
+/* ---------- 畫出來 ---------- */
+function render(){
+  var app=document.getElementById("app"),r=route();
+  if(r.name!=="item") UI.from=r.hash;
+  if(MODE==="supabase"&&!TOK){app.innerHTML=loginHtml();wireLogin();return;}
+  if(MODE==="needcfg"){app.innerHTML='<div class="login"><h2>還沒設定</h2><p>請用「設定連結」打開一次（網址後面帶 #u=…&k=…），之後只要輸入帳號密碼。</p></div>';return;}
+  if(!SNAP){app.innerHTML='<div class="login"><h2>公司看板</h2><p>'+esc(ERR||"讀取中…")+'</p></div>';return;}
+  var body="";
+  var fn={home:pHome,todo:pTodo,item:pItem,biz:pBiz,unit:pUnit,res:pRes}[r.name]||pHome;
+  body=safe(function(){return fn(r);},'<div class="note bad">這一頁畫不出來，請回首頁。</div>');
+  var note=ERR?'<div class="note bad">'+esc(ERR)+'</div>':"";
+  var y=window.scrollY;
+  app.innerHTML=header(r)+'<main>'+note+body+'</main>';
+  if(UI.lastSig===r.hash) window.scrollTo(0,y); else window.scrollTo(0,0);
+  UI.lastSig=r.hash;
 }
-function slicePg(k,list,per){ var p=pgAt(k,list.length,per); return list.slice(p*per,p*per+per); }
-/* 一欄＝一頁：桌機並排，手機一次一欄（放不下就換頁，不縮小） */
-function paneWrap(cls,items){
-  var n=items.length;
-  if(view.pane>=n) view.pane=n-1;
-  if(view.pane<0) view.pane=0;
-  return '<div class="'+cls+'">'+items.map(function(it,i){
-      return '<div class="pane'+(view.pane===i?" on":"")+(it.side?" pside":"")+'">'+it.html+'</div>';
-    }).join("")+'</div>'
-    +(n>1?'<div class="panes"><button class="g" data-pane="-1"'+(view.pane<=0?" disabled":"")
-      +' aria-label="上一頁">‹</button><span>'+esc(items[view.pane].label)+'（'+(view.pane+1)
-      +' / '+n+'）</span><button class="g" data-pane="1"'+(view.pane>=n-1?" disabled":"")
-      +' aria-label="下一頁">›</button></div>':'');
+function renderToasts(){
+  document.getElementById("banners").innerHTML=UI.toasts.map(function(t){
+    return '<div class="banner '+t.kind+'"><span>'+esc(t.text)+(t.link?'<a href="'+esc(t.link)+'">回到這一件</a>':'')+'</span><button data-act="x" data-id="'+t.id+'">關閉</button></div>';}).join("");
 }
-function pager(k,n,per,unit){
-  var ps=pages(n,per);
-  if(ps<2) return '<span class="dim">'+fmt(n)+' '+(unit||"件")+'</span>';
-  var p=pgAt(k,n,per);
-  return '<span class="pgr"><span class="dim">'+fmt(n)+' '+(unit||"件")+'</span>'
-    +'<button class="g" data-pg="'+k+'|-1"'+(p<=0?' disabled':'')+' aria-label="上一頁">‹</button>'
-    +'<span class="num dim">'+(p+1)+' / '+ps+'</span>'
-    +'<button class="g" data-pg="'+k+'|1"'+(p>=ps-1?' disabled':'')+' aria-label="下一頁">›</button></span>';
-}
+function toast(text,kind,link){var t={id:++UI.seq,text:text,kind:kind||"",link:link||""};UI.toasts.push(t);renderToasts();return t;}
+function setToast(t,text,kind,link){t.text=text;t.kind=kind;t.link=link||"";renderToasts();}   /* 橫幅不會自己消失，只有老闆按關閉 */
+function dropToast(id){UI.toasts=UI.toasts.filter(function(t){return t.id!==id;});renderToasts();}
 
-/* ---------- 登入／設定 ---------- */
-function renderLogin(msg){
-  document.getElementById("app").innerHTML=
-   '<div class="login"><h1>工廠看板</h1>'
-   +'<div class="dim">要老闆的帳號密碼。沒登入看不到任何資料。</div>'
-   +'<input id="em" type="email" inputmode="email" autocomplete="username" placeholder="電子郵件">'
-   +'<input id="pw" type="password" autocomplete="current-password" placeholder="密碼">'
-   +'<button class="p" id="go" style="justify-content:center">登入</button>'
-   +(msg?'<div class="err">'+esc(msg)+'</div>':'')+'</div>';
-  var go=function(){
-    var b=document.getElementById("go"); b.disabled=true; b.textContent="登入中…";
-    login(document.getElementById("em").value.trim(),document.getElementById("pw").value)
-      .then(function(){ start(); })
-      .catch(function(e){ renderLogin(e.message||"登入失敗"); });
+/* ---------- 放大看圖：點一下放大，再點／關閉／上一頁／Esc 收起 ---------- */
+function openZoom(src){
+  if(!/^data:image\/jpeg;base64,/.test(src||""))return;
+  var z=document.getElementById("zoom");
+  z.innerHTML='<img alt="" src="'+esc(src)+'" data-act="unzoom"><span data-act="unzoom">關閉</span>';
+  z.setAttribute("data-act","unzoom");z.hidden=false;
+  try{history.pushState({z:1},"",location.href);}catch(e){}
+}
+function closeZoom(){var z=document.getElementById("zoom");z.hidden=true;z.innerHTML="";}
+window.addEventListener("popstate",function(){closeZoom();});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!document.getElementById("zoom").hidden){if(history.state&&history.state.z)history.back();else closeZoom();}});
+
+/* ---------- 按鈕 ---------- */
+function doPress(bkey){
+  var r=route();if(r.name!=="item")return;
+  var p=pendOf(r.a,r.b);if(!p)return;
+  var key=p._u.key+"|"+p.id;
+  if(UI.pressing[key])return;
+  var btn=A(p.buttons).filter(function(b){return b.key===bkey;})[0];if(!btn)return;
+  var choice=p.choose&&A(p.choose.options).length?(UI.choice[key]&&p.choose.options.some(function(o){return o.key===UI.choice[key];})?UI.choice[key]:p.choose.options[0].key):"";
+  UI.pressing[key]=true;
+  var t=toast("已送出：「"+p.title+"」，"+(MODE==="local"?"等收件指令回覆…":"本機還沒收到…"),"");
+  var back_=UI.from&&UI.from.indexOf("#/item")!==0?UI.from:"#/todo";
+  location.replace(back_);
+  var failLink=location.pathname+itemHref(p);
+  var done=function(res){
+    delete UI.pressing[key];
+    setToast(t,(p.title?"「"+p.title+"」：":"")+res.text,res.ok?"ok":"bad",res.ok?"":itemHref(p));
+    refresh(true);
   };
-  document.getElementById("go").onclick=go;
-  document.getElementById("pw").onkeydown=function(e){ if(e.key==="Enter") go(); };
-}
-function renderSetup(){
-  document.getElementById("app").innerHTML=
-   '<div class="login"><h1>還沒設定</h1><div class="dim">'
-   +'請用 CEO 給的設定連結開這一頁一次，之後就只要帳號密碼。</div></div>';
+  if(MODE==="local"){
+    fetch("/api/press",{method:"POST",headers:{"Content-Type":"application/json","X-Board":"1"},body:JSON.stringify({unit:p._u.key,id:p.id,button:bkey,choice:choice})})
+      .then(function(x){return x.json();}).then(done).catch(function(){done({ok:false,text:"連不上本機後端，沒有送出"});});
+  }else{
+    authed("/rest/v1/board_actions",{method:"POST",body:[{channel:p._u.key,build:"",card:p.id,kind:"co_press",verdict:bkey,note:choice}],headers:{Prefer:"return=representation"}}).then(function(x){
+      if(!x.ok||!x.data||!x.data[0]) throw new Error("送不出去（"+x.status+"）");
+      var id=x.data[0].id,n=0,iv=setInterval(function(){
+        n++;
+        authed("/rest/v1/board_actions?id=eq."+id+"&select=applied_at,result").then(function(y){
+          var row=y.ok&&y.data&&y.data[0];
+          if(row&&row.applied_at){clearInterval(iv);var j=null;try{j=JSON.parse(row.result);}catch(e){}done(j&&typeof j.text==="string"?j:{ok:false,text:"本機回的格式看不懂"});}
+          else if(n===30) setToast(t,"已送出：「"+p.title+"」，本機還沒收到（它醒來就會處理，結果會在這裡出現）","");
+          else if(n>200){clearInterval(iv);delete UI.pressing[key];setToast(t,"「"+p.title+"」：等了很久本機都沒回，請看一下後端有沒有在跑","bad",itemHref(p));}
+        });
+      },3000);
+    }).catch(function(e){delete UI.pressing[key];setToast(t,"送不出去："+(e.message||e),"bad",itemHref(p));});
+  }
 }
 
-/* ---------- 頂列與主選單 ---------- */
-function staleWhy(){
-  var st=snap.staleness||{}, age=pushedAgo(), limit=(st.limit_sec||720);
-  var late=age!==null&&age>Math.max(limit,900);
-  return late?("資料沒上來：最後一次 "+hhmm(at)+"（"+Math.round(age/60)+" 分前）")
-             :(st.stale?(st.why||"資料過期"):"");
+/* ---------- Supabase ---------- */
+function loadCfg(){
+  var h=location.hash.replace(/^#/,"");
+  if(h&&h.indexOf("u=")>=0&&h.indexOf("k=")>=0){
+    var p=new URLSearchParams(h),u=p.get("u"),k=p.get("k");
+    if(u&&k){var c={url:u.replace(/\/+$/,""),key:k};try{localStorage.setItem(LS+"cfg",JSON.stringify(c));}catch(e){}
+      history.replaceState(null,"",location.pathname+location.search+"#/");return c;}
+  }
+  try{return JSON.parse(localStorage.getItem(LS+"cfg")||localStorage.getItem("aicc-board-cfg")||"null");}catch(e){return null;}   /* 沿用舊看板存的設定，切換不用重開設定連結 */
 }
-function stateText(){
-  var why=staleWhy(), h=snap.health||{};
-  if(why) return ["b","資料沒上來，要看一下"];
-  if(h.halted) return ["b","全廠停工中"];
-  if(snap.status==="ONLINE") return ["","工廠運作中"];
-  return ["w","工廠有狀況"];
+function saveTok(t){TOK=t;try{t?localStorage.setItem(LS+"tok",JSON.stringify(t)):localStorage.removeItem(LS+"tok");}catch(e){}}
+function api(path,opt){
+  opt=opt||{};var h={apikey:CFG.key,"Content-Type":"application/json"};
+  if(TOK&&TOK.access_token)h.Authorization="Bearer "+TOK.access_token;
+  Object.keys(opt.headers||{}).forEach(function(k){h[k]=opt.headers[k];});
+  return fetch(CFG.url+path,{method:opt.method||"GET",headers:h,body:opt.body?JSON.stringify(opt.body):undefined}).then(function(r){
+    return r.text().then(function(t){var j=null;try{j=t?JSON.parse(t):null;}catch(e){j=t;}return {ok:r.ok,status:r.status,data:j};});});
 }
-function inbox(slug){
-  return ((snap&&snap.inbox)||[]).filter(function(r){ return !slug||r.channel===slug; });
+function authed(path,opt){
+  return api(path,opt).then(function(r){
+    if(r.status!==401||!TOK||!TOK.refresh_token)return r;
+    return api("/auth/v1/token?grant_type=refresh_token",{method:"POST",body:{refresh_token:TOK.refresh_token}}).then(function(x){
+      if(!x.ok){saveTok(null);render();throw new Error("登入過期，請重新登入");}
+      saveTok(x.data);return api(path,opt);});
+  });
 }
-/* ER-165④：「等你」不是全部都叫放行——決策卡（kind=decide）才是放行，其他（設相關影片這種
-   老闆自己到後台動手的）分開數、分開講。主選單與橫幅的徽章一律用 all（等你的事總件數）。 */
-function inboxSplit(slug){
-  var rows=inbox(slug), rel=rows.filter(function(r){ return r.kind!=="decide"; });
-  return {all:rows.length, rel:rel.length, ask:rows.length-rel.length};
-}
-function inboxWord(slug){
-  var s=inboxSplit(slug);
-  return [s.ask?s.ask+" 支片等你放行":"", s.rel?s.rel+" 件小事":""].filter(Boolean).join("・");
-}
-function menuBtn(t){
-  var n=inbox().length;
-  return '<button data-tab="'+t[0]+'" aria-selected="'+(view.tab===t[0])+'">'+t[1]
-    +(t[0]==="inbox"&&n?'<span class="cnt num">'+n+'</span>':"")+'</button>';
-}
-function topBar(){
-  var s=stateText();
-  return '<div class="top'+(s[0]==="b"?" red":"")+'">'
-    +'<span class="brand">AI 內容公司</span>'
-    +'<nav class="menu desk" aria-label="主選單">'+TABS.map(menuBtn).join("")+'</nav>'
-    +'<span class="gap"></span>'
-    +'<span class="st"><span class="lite'+(s[0]?" "+s[0]:"")+'"></span>'+esc(s[1])
-    +'<span class="dim">・'+hhmm(at)+'</span></span>'
-    +'<button class="g" id="th" title="亮暗" aria-label="亮暗切換">'+ico("theme")+'</button>'
-    +'<button class="g" id="out" title="登出" aria-label="登出">'+ico("out")
-    +'<span class="lbl">登出</span></button></div>';
-}
-function navBottom(){
-  var n=inbox().length;
-  return '<nav class="navb" aria-label="主選單">'+TABS.map(function(t){
-    return '<button data-tab="'+t[0]+'" aria-selected="'+(view.tab===t[0])+'">'+t[1]
-      +(t[0]==="inbox"&&n?"・"+n:"")+'</button>';
-  }).join("")+'</nav>';
+function loginHtml(){return '<div class="login"><h2>公司看板</h2><form id="lf"><label>Email<input type="email" id="em" autocomplete="username" required></label><label>密碼<input type="password" id="pw" autocomplete="current-password" required></label><button class="btn primary" type="submit">登入</button><p id="lerr" class="hot"></p></form></div>';}
+function wireLogin(){
+  var f=document.getElementById("lf");if(!f)return;
+  f.onsubmit=function(e){e.preventDefault();
+    api("/auth/v1/token?grant_type=password",{method:"POST",body:{email:document.getElementById("em").value,password:document.getElementById("pw").value}}).then(function(r){
+      if(!r.ok){document.getElementById("lerr").textContent=(r.data&&(r.data.error_description||r.data.msg))||("登入失敗 "+r.status);return;}
+      saveTok(r.data);refresh(true);});};
 }
 
-/* ---------- 總覽：四個指標＋一頻道一行的總表＋右欄等你／提醒 ---------- */
-function openedChs(){
-  return (snap.channels||[]).filter(function(c){ return c.opened!==false; });
-}
-function readyCards(slug){
-  return inbox(slug).filter(function(r){ return r.kind==="decide"&&r.gate_open; }).length;
-}
-function dots(done,wait,target){
-  var n=Math.max(Number(target)||0,done+wait,1), s="";
-  for(var i=0;i<n&&i<6;i++) s+='<i class="'+(i<done?"on":(i<done+wait?"wait":""))+'"></i>';
-  return '<span class="dots" aria-label="本週做好 '+done+' 支、'+wait+' 支等你">'+s+'</span>';
-}
-function mWeek(){
-  var chs=openedChs();
-  var done=chs.reduce(function(a,c){return a+(c.done_week||0);},0);
-  var target=chs.reduce(function(a,c){return a+(Number(c.weekly_target)||0);},0);
-  var wait=readyCards("");
-  return '<div class="card"><div class="col"><span class="lab">本週出片</span>'
-    +'<span class="big">'+fmt(done)+'<span class="dim" style="font-size:14px"> / '
-    +(target||"？")+'</span></span></div>'
-    +'<div class="xtra">'+dots(done,wait,target)
-    +'<span class="dim lab2">'+(wait?wait+" 支做好等你放行":"沒有等著放行的片")+'</span></div></div>';
-}
-function mViews(){
-  var v7=views7("views_7d"), p7=views7("views_prev7"), th=reportThrough();
-  return '<div class="card"><div class="col"><span class="lab">近 7 天觀看</span>'
-    +'<span class="big">'+(v7==null?'<span class="dim">量不到</span>':fmt(v7))+' '
-    +delta(v7,p7)+'</span></div>'
-    +'<div class="xtra">'+spark(dailyTot(""))
-    +'<span class="dim lab2">'+(th?"報表到 "+md(th)+"（晚 2～3 天）":"還沒有逐日報表")
-    +'</span></div></div>';
-}
-function mSubs(){
-  var cs=anaChs(), subs=null, dl=null;
-  cs.forEach(function(c){
-    var l=c.live||{};
-    if(l.subs!=null) subs=(subs||0)+l.subs;
-    if(l.subs_delta_7d!=null) dl=(dl||0)+l.subs_delta_7d;
-  });
-  var ms=[100,1000,10000,100000,1000000].filter(function(x){return subs==null||x>subs;})[0]||1000000;
-  var pct=subs==null?null:Math.min(100,subs/ms*100);
-  return '<div class="card"><div class="col"><span class="lab">訂閱</span>'
-    +'<span class="big">'+(subs==null?'<span class="dim">量不到</span>':fmt(subs))
-    +(dl==null?'':'<span class="dim" style="font-size:13px">　本週 '
-      +((dl>=0?"＋":"－")+fmt(Math.abs(dl)))+'</span>')+'</span></div>'
-    +'<div class="xtra"><span style="display:flex">'+bc(pct)+'</span>'
-    +'<span class="dim lab2" style="text-align:right">到 '+fmt(ms)+' 還差 '
-    +(subs==null?"？":fmt(ms-subs))+'</span></div></div>';
-}
-/* ER-166：訂閱剩餘只在讀數還新鮮時才報數字；過期或沒掛上 status line 一律「未知」，
-   不准拿舊的 token 估算頂替。`qAge` 是給旁邊那行資料時效用的。 */
-function qRemain(q){ return (q&&q.fresh&&q.remain_pct!=null)?q.remain_pct:null; }
-function qAge(q){
-  if(!q||!q.at) return "還沒讀到過（status line 未掛上）";
-  return (q.fresh?"讀於 ":"上次 ")+String(q.at).slice(5,16)+(q.fresh?"":"・已過期當未知");
-}
-function mCost(){
-  var r=snap.resources||{}, q=r.quota||{}, cash=r.cash||{};
-  var line=function(name,pct,txt,cls){
-    return '<div style="display:flex;align-items:center;gap:8px;font-size:12px">'
-      +'<span class="dim" style="width:56px">'+name+'</span>'+bc(pct,cls)
-      +'<span class="num" style="width:56px;text-align:right;font-weight:600">'+txt+'</span></div>';
-  };
-  var over=cash.week!=null&&cash.cap&&cash.week>cash.cap;
-  /* ER-166：手機只放得下一個數字 → 留「訂閱還剩多少」（真實值；讀不到就寫未知） */
-  var rem=qRemain(q), remTxt=(rem==null?"未知":rem+"%");
-  return '<div class="card" style="flex-direction:column;align-items:stretch;gap:6px;'
-    +'justify-content:center">'
-    +'<div class="mob" style="flex-direction:column;align-items:center">'
-    +'<span class="lab">訂閱剩餘</span>'
-    +'<span class="big">'+remTxt+'</span></div>'
-    +'<div class="xtra" style="width:100%">'
-    +line("訂閱剩餘",rem,remTxt,q.light==="紅"?"r":(q.light==="黃"?"":"g"))
-    +line("外部現金",(cash.week!=null&&cash.cap?cash.week/cash.cap*100:null),
-          (cash.week==null?"—":"$"+fmt(cash.week)+(cash.cap?"/"+fmt(cash.cap):"")),over?"r":"g")
-    +'</div></div>';
-}
-/* 需要注意的排最前面：卡住 → 有片等你 → 在跑 → 沒開線。 */
-function attn(c){
-  if(c.stuck) return 0;
-  if(c.waiting) return 1;
-  if(c.opened===false) return 4;
-  return (c.active?2:3);
-}
-function chPill(c){
-  if(c.stuck) return ['b',"有片卡住"];
-  if(c.waiting) return ['w',c.waiting+" 支等你"];
-  if(c.opened===false) return ['',"籌備中"];
-  return ['o',"運作中"];
-}
-function stageAt(b,ds){                 // 片現在在第幾段：在動的站優先，都沒有就看做完的最後一站
-  var sts=b.stations||[], pick=null;
-  ["running","awaiting_boss","awaiting_ceo","failed","blocked"].forEach(function(st){
-    if(!pick) sts.forEach(function(s){ if(!pick&&s.status===st) pick=s; });
-  });
-  if(!pick) sts.forEach(function(s){ if(/^completed/.test(String(s.status||""))) pick=s; });
-  var i=pick?ds.indexOf(pick.dept||""):-1;
-  return i<0?0:i;
-}
-function depts(c){ return (c.depts&&c.depts.length)?c.depts:Object.keys(DEPT_ZH); }
-function track(c){
-  var ds=depts(c), cnt=ds.map(function(){ return 0; });
-  (c.builds||[]).forEach(function(b){
-    var i=stageAt(b,ds);
-    if(i>=0&&i<cnt.length) cnt[i]++;
-  });
-  return '<span class="trk" style="grid-template-columns:repeat('+ds.length
-    +',minmax(0,1fr))">'+ds.map(function(d,i){
-      return '<i class="'+(cnt[i]?"on":"")+'" title="'+esc(DEPT_ZH[d]||d)+'：'+cnt[i]+' 支">'
-        +(cnt[i]||"")+'</i>';
-    }).join("")+'</span>';
-}
-function nextPub(slug){
-  var cells=((snap.calendar||{}).cells)||[], t=today(), out="";
-  for(var i=0;i<cells.length;i++){
-    var x=cells[i];
-    if(x.d<t) continue;
-    if((x.items||[]).some(function(it){ return it.channel===slug; }))
-      return md(x.d)+" 週"+(x.wd||"");
+/* ---------- 讀資料 ---------- */
+function sigOf(s){var c=Object.assign({},s);delete c.at;return JSON.stringify(c);}
+function refresh(force){
+  if(MODE==="local"){
+    return fetch("/api/snapshot",{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(s){
+      var ch=!SNAP||sigOf(s)!==sigOf(SNAP);SNAP=s;SNAPAT="";ERR="";if(ch||force)render();}).catch(function(){ERR="連不上本機後端";if(SNAP)render();});
   }
-  /* 行事曆只排到本週；本週沒有就看在線片自己認領的出片日 */
-  (((ch(slug)||{}).builds)||[]).forEach(function(b){
-    var d=b.target_publish||"";
-    if(d&&d>=t&&(!out||d<out)) out=d;
-  });
-  /* ER-165③：都沒有未來的日子＝沒有排程；有片停在放行關卡就講「等你放行」，不報過期日 */
-  return out?md(out):(((ch(slug)||{}).waiting)?"等你放行":"未排");
-}
-function chRow(c){
-  var a=anaOf(c.slug)||{}, l=a.live||{}, k=c.kpi||{};
-  var cap=((snap.resources||{}).cash||{}).cap;
-  var pill=chPill(c), d=(a.daily||[]).slice(-14).map(function(x){
-    return x.pending?null:((x.long||0)+(x.short||0)); });
-  var v7=a.views_7d, p7=a.views_prev7;
-  return '<button class="chr'+(c.waiting||c.stuck?" warn":"")+(c.opened===false?" off":"")
-    +'" data-ch="'+esc(c.slug)+'">'
-    +'<span class="nm"><span class="chip" style="border-radius:50%;background:'+esc(c.color)+'"></span>'
-    +'<span class="nmt"><b class="ell">'+esc(c.name)+'</b>'
-    +'<span class="sub">'+esc(pill[1]+"・本週 "+fmt(c.done_week||0)+"／"
-      +(c.weekly_target||"？")+" 支")+'</span></span>'
-    +'<span class="pill '+pill[0]+'">'+pill[1]+'</span></span>'
-    +'<span>'+dots(c.done_week||0,c.waiting||0,c.weekly_target)+'</span>'
-    +'<span class="c-track">'+track(c)+'</span>'
-    +'<span class="v7"><span class="num">'+((v7==null||c.opened===false)?"—":fmt(v7))+'</span>'
-    +spark(d,c.color)+delta(v7,p7)+'</span>'
-    +'<span class="c-subs num" style="font-weight:600">'+(l.subs==null?"—":fmt(l.subs))+'</span>'
-    +'<span class="c-cost cost">'+bc(k.cash_week!=null&&cap?k.cash_week/cap*100:null,"g")
-    +'<span class="num dim">'+(k.cash_week==null?"—":"$"+fmt(k.cash_week))+'</span></span>'
-    +'<span class="c-next" style="font-size:13px">'+esc(nextPub(c.slug))+'</span>'
-    +'<span class="dim" aria-hidden="true">›</span></button>';
-}
-function chTable(){
-  var cs=(snap.channels||[]).slice().sort(function(x,y){
-    return attn(x)-attn(y)||String(x.name).localeCompare(String(y.name)); });
-  var rows=slicePg("ch",cs,per("ch"));
-  return '<section class="panel" aria-label="頻道總表">'
-    +'<div class="ph"><h2>頻道</h2><span class="dim">需要注意的排最前面・點一行進頻道</span></div>'
-    +'<div class="thead"><span>頻道</span><span>本週出片</span><span class="c-track">產線（片在哪一段）</span>'
-    +'<span>近 7 天觀看</span><span class="c-subs">訂閱</span><span class="c-cost">本週花費</span>'
-    +'<span class="c-next">下一支公開</span><span></span></div>'
-    +'<div class="rows">'+(rows.map(chRow).join("")||'<div class="dim" style="padding:14px 18px">'
-      +'還沒有頻道。</div>')+'</div>'
-    +'<div class="pf"><span class="c-track">產線七段：'
-    +depts(cs[0]||{}).map(function(d){ return DEPT_ZH[d]||d; }).join("・")
-    +'；格裡的數字＝停在那一段的片數</span><span class="mob">點一行進頻道</span>'
-    +pager("ch",cs.length,per("ch"),"個頻道")+'</div></section>';
-}
-function askTitle(r){
-  var m=String(r.title||"").match(/標題三選\s*\d\)\s*([^／；\n]+)/);
-  if(m) return plain(m[1]);
-  var t=plain(r.title);
-  m=t.match(/^([^：]{4,60})/);
-  return (m?m[1]:t.slice(0,60))||"等你看一眼";
-}
-function askMeta(r){
-  var c=ch(r.channel), w=dayDiff(r.date,at);
-  return [c?c.name:"", r.kind==="related"?"要到影片後台設相關影片":"長片做好，等你放行公開",
-          r.date?md(r.date)+" 做好":"", (w!=null&&w>0?"等了 "+w+" 天":"")]
-    .filter(Boolean).join("・");
-}
-function askCard(r,slug){
-  var busy=!!view.busy[r.card], th=(r.thumbs||[])[0];
-  /* 認得出是哪一支片的 → 開抽屜；設相關影片、認不出頻道的 → 小彈窗（那是卡不是片） */
-  var asFilm=r.kind==="decide"&&r.channel&&r.build&&!r.ambiguous;
-  var open=asFilm?('data-film="'+esc(r.channel+"|"+r.build)+'"')
-                 :('data-open="'+esc(r.card)+'"');
-  return '<div class="ask'+(busy?" busy":"")+'"><div class="hd">'
-    +(th?'<img class="thumb" src="'+esc(th.src)+'" alt="縮圖">'
-        :'<span class="thumb">沒抓到縮圖</span>')
-    +'<div style="min-width:0;display:flex;flex-direction:column;gap:2px">'
-    +'<span class="tt">'+esc(askTitle(r))+'</span>'
-    +'<span class="dim">'+esc(askMeta(r))+'</span></div></div>'
-    +(busy?'<div class="acts"><span class="spin"></span><span class="dim">處理中…</span></div>'
-      :'<div class="acts">'
-       +(slug?'':'<button '+open+'>'+(asFilm?"看片與縮圖":"打開這張")+'</button>')
-       +'<button class="p" '+open+'>'+(asFilm?"看並放行":(r.kind==="related"?"去設定":"處理"))
-       +'</button></div>')
-    +'</div>';
-}
-function asksPanel(slug,limit){
-  var rows=inbox(slug), show=limit?rows.slice(0,limit):slicePg("ask",rows,per("ask"));
-  var sp=inboxSplit(slug);
-  return '<section class="panel'+(limit?'':' grow')+'" aria-label="等你決定">'
-    +'<div class="ph"><h2>等你決定</h2>'
-    +(rows.length?'<span class="cnt num">'+rows.length+'</span>':'')
-    /* 窄的右欄放不下這一句（每張卡自己寫了是放行還是小事），只在「等你」整頁寫 */
-    +((sp.rel&&!limit)?'<span class="dim ell">'+esc(inboxWord(slug))+'</span>':'')
-    +(limit&&rows.length>limit?'<button class="g" data-tab="inbox" style="margin-left:auto">看全部</button>'
-      :(limit?'':'<span class="gap"></span>'+pager("ask",rows.length,per("ask"),"件")))+'</div>'
-    +'<div class="pb" style="overflow:hidden">'
-    +(show.map(function(r){ return askCard(r,slug); }).join("")
-      ||'<div class="dim">沒有等你決定的事。</div>')+'</div></section>';
-}
-function notes(slug){
-  var ns=[], why=staleWhy(), h=snap.health||{}, r=snap.resources||{}, cs=anaChs(slug);
-  var q=((snap.line_now||{}).queue||[]).filter(function(x){ return !slug||x.channel===slug; });
-  if(why) ns.push(["var(--bad)","工廠的狀態沒有即時更新",
-                   "最後一次更新 "+hhmm(at)+"，比平常久；產線本身不受影響"]);
-  if(h.halted) ns.push(["var(--bad)","全廠停工中","排程器停著，要人去開起來"]);
-  var pend=0;
-  if(cs.length) (cs[0].daily||[]).forEach(function(x){ pend=x.pending?pend+1:0; });
-  if(pend) ns.push(["var(--series2)","最近 "+pend+" 天的觀看數還沒進來",
-                    "報表固定晚 2～3 天，不是掉量"]);
-  var gpu=q.filter(function(x){ return x.kind==="gpu"; }).length;
-  if(gpu) ns.push(["var(--accent)",gpu+" 支在等顯卡時窗",
-                   (r.gpu||{}).next_open?"下次開 "+md(String((r.gpu||{}).next_open).slice(0,10))
-                     +" "+hhmm((r.gpu||{}).next_open):"時窗現在沒開"]);
-  var left=(slug?[ch(slug)].filter(Boolean):openedChs()).filter(function(c){ return c.opened!==false; })
-    .reduce(function(a,c){ return a+Math.max(0,(Number(c.weekly_target)||0)-(c.done_week||0)); },0);
-  if(left) ns.push(["var(--warn)","本週還有 "+left+" 支要完成","做好的片要你放行才算完成"]);
-  /* ER-166：提醒寫白話——紅＝產線真的會停、黃＝建議暫停開新單、未知＝讀不到別亂報 */
-  var qq=r.quota||{};
-  if(qq.light==="紅") ns.push(["var(--bad)","額度不夠，產線會排隊停擺",plain(qq.text||"")]);
-  else if(qq.light==="黃") ns.push(["var(--warn)","額度照目前燒法會不夠",
-                                    "建議暫停開新單（施工與討論才是大頭）"]);
-  else if(qq.light==="未知") ns.push(["var(--series2)","訂閱剩餘讀不到",qAge(qq)]);
-  /* 異常：只留「等你決定」裡沒有的那些（等放行的那幾支在上面那塊已經寫了，不重複講） */
-  (snap.channels||[]).forEach(function(c){
-    if(slug&&c.slug!==slug) return;
-    (c.alerts||[]).forEach(function(a){
-      if(/放行|等老闆|額度/.test(a.text||"")) return;   // 這兩件上面已經各有一行，不重複講
-      if(a.build&&inbox().some(function(r){ return r.build===a.build; })) return;
-      var t=plain(a.text).slice(0,60);
-      if(t) ns.push([a.level==="P0"||a.level==="P1"?"var(--bad)":"var(--warn)",
-                     c.name+"：有事要處理",t]);
-    });
-  });
-  return ns;
-}
-function notesPanel(slug,limit){
-  var ns=notes(slug), show=limit?ns.slice(0,limit):slicePg("note",ns,per("note"));
-  return '<section class="panel grow" aria-label="提醒">'
-    +'<div class="ph"><h2>'+(slug?"這個頻道的提醒":"提醒")+'</h2>'
-    +(limit&&ns.length>limit?'<button class="g" data-tab="inbox" style="margin-left:auto">看全部</button>'
-      :(limit?'':'<span class="gap"></span>'+pager("note",ns.length,per("note"),"件")))+'</div>'
-    +'<div class="pb">'+(show.map(function(x){
-      return '<div class="note"><u style="background:'+x[0]+'"></u><div><b>'+esc(x[1])+'</b>'
-        +'<span class="dim">'+esc(x[2])+'</span></div></div>';
-    }).join("")||'<div class="dim">沒有要提醒的事。</div>')+'</div></section>';
-}
-function mobAsk(){                                 // 手機：等你橫幅（右欄在 375 寬收起來）
-  var rows=inbox();
-  if(!rows.length) return '';
-  return '<button class="mob" data-tab="inbox" style="align-items:center;gap:12px;padding:11px 14px;'
-    +'background:var(--ink);color:var(--bg);border:0;border-radius:12px;width:100%">'
-    +'<span class="num" style="width:30px;height:30px;border-radius:50%;background:var(--warn);'
-    +'color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">'
-    +rows.length+'</span>'
-    +'<span style="flex:1;min-width:0;text-align:left"><b>'+esc(inboxWord(""))+'</b>'
-    +'<span class="ell" style="display:block;font-size:12px;opacity:.8">'
-    +esc(rows.map(function(r){ return askTitle(r).slice(0,12); }).join("・"))+'</span></span>'
-    +'<span aria-hidden="true">›</span></button>';
-}
-function overview(){
-  return '<div class="wrap">'
-    +'<div class="g4">'+mWeek()+mViews()+mSubs()+mCost()+'</div>'
-    +mobAsk()
-    +'<div class="main">'+chTable()
-    +'<aside class="side desk">'+asksPanel("",3)+notesPanel("",3)+'</aside></div></div>';
+  if(MODE!=="supabase"||!TOK)return Promise.resolve();
+  var q=force||!SNAP?"select=at,data":"select=at";
+  return authed("/rest/v1/board_snapshot?key=eq.company&"+q).then(function(r){
+    if(!r.ok)throw new Error("讀不到資料（"+r.status+"）");
+    var row=r.data&&r.data[0];
+    if(!row){throw new Error("還沒有快照（本機後端還沒推第一輪）");}
+    if(row.data){SNAP=row.data;SNAPAT=row.at;ERR="";render();}
+    else if(row.at!==SNAPAT){return refresh(true);}
+    else{ERR="";render();}
+  }).catch(function(e){ERR=e.message||String(e);render();});
 }
 
-/* ---------- 頻道頁 ---------- */
-function chIdx(){
-  var cs=snap.channels||[];
-  for(var i=0;i<cs.length;i++) if(cs[i].slug===view.ch) return i;
-  return 0;
-}
-function curCh(){ return (snap.channels||[])[chIdx()]||null; }
-function filmTitle(c,b){
-  if(b.title) return b.title;
-  var o=(c.orders||[]).filter(function(x){ return x.id===b.build; })[0];
-  var t=o?plain(o.title):"";
-  return t?t.slice(0,26):(/^_/.test(b.build)?"下一支（還沒接片）":b.build);
-}
-function filmState(b){                             // 這支片現在停在哪、怎麼了（白話）
-  var sts=b.stations||[], pick=null;
-  ["running","awaiting_boss","awaiting_ceo","failed","blocked"].forEach(function(st){
-    if(!pick) sts.forEach(function(s){ if(!pick&&s.status===st) pick=s; });
-  });
-  if(!pick) return {zh:"排隊中", why:""};
-  var zh={running:"正在做", awaiting_boss:"等你放行", awaiting_ceo:"等審",
-          failed:"做壞了", blocked:"卡住"}[pick.status]||pick.status_zh||"";
-  return {zh:zh, why:plain(pick.wait_reason||pick.fail_note||"")};
-}
-function films(c){
-  var ds=depts(c);
-  return (c.builds||[]).map(function(b){
-    var card=inbox(c.slug).filter(function(r){
-      return r.kind==="decide"&&r.build===b.build; })[0]||null;
-    return {b:b, id:b.build, at:stageAt(b,ds), title:filmTitle(c,b), card:card,
-            state:filmState(b), wait:!!card};
-  });
-}
-function filmBtn(f,c){
-  var th=((f.card&&f.card.thumbs)||[])[0];
-  var meta=[f.state.zh, pubNote(f.b,f.state.zh), f.state.why].filter(Boolean).join("・");
-  return '<button class="film'+(f.wait?" w":"")+'" data-film="'+esc(c.slug+"|"+f.id)+'">'
-    +(th?'<img class="th" src="'+esc(th.src)+'" alt="縮圖">':'<span class="th">無圖</span>')
-    +'<span style="min-width:0;display:flex;flex-direction:column">'
-    +'<span class="tt ell">'+esc(f.title)+'</span>'
-    +'<span class="dim ell">'+esc(meta)+'</span></span></button>';
-}
-function chStages(c){
-  var ds=depts(c), fs=films(c);
-  var done=c.done_week||0, target=Number(c.weekly_target)||0, wait=readyCards(c.slug);
-  return '<div class="ph"><h2>本週進度</h2><span class="num" style="font-weight:700;font-size:17px">'
-    +fmt(done)+' / '+(target||"？")+'</span>'+dots(done,wait,target)
-    +'<span class="dim" style="margin-left:auto">空心＝做好待放行</span></div>'
-    +'<div class="pb"><div class="stg">'+ds.map(function(d,i){
-      var mine=fs.filter(function(f){ return f.at===i; });
-      return '<div class="r'+(mine.length?" on":"")+'"><span class="lb"><u></u>'
-        +esc(DEPT_ZH[d]||d)+'</span><span class="bx">'
-        +mine.map(function(f){ return filmBtn(f,c); }).join("")+'</span></div>';
-    }).join("")+'</div>'
-    +'<div class="dim">'+esc(fs.length
-      ?"點一支片看細節與放行"
-      :"這個頻道現在沒有在線的片")+'</div></div>';
-}
-function barsBox(c){                    // 30 天每日觀看；報表未到的日子畫斜線，不畫 0
-  var a=anaOf(c.slug)||{}, ds=a.daily||[];
-  if(!ds.length) return '<div class="dim">還沒推每日觀看資料。</div>';
-  var pubs={}; (a.publishes||[]).forEach(function(p){ pubs[p.d]=1; });
-  var tot=ds.map(function(x){ return x.pending?null:((x.long||0)+(x.short||0)); });
-  if(!tot.some(function(v){ return v; }))
-    return '<div class="dim">頻道還沒開始出片，第一支片上架後就會有每日觀看。</div>';
-  var max=Math.max.apply(null,[1].concat(tot.filter(function(v){ return v!=null; })));
-  return '<div class="bars">'+ds.map(function(x,i){
-      var v=tot[i];
-      return '<i class="'+(v==null?"none":(pubs[x.d]?"pub":""))+'"'
-        +(v==null?'':' style="height:'+Math.max(3,Math.round(v/max*96))+'%"')
-        +' title="'+esc(md(x.d))+(v==null?"：報表還沒到":"："+fmt(v)+" 次")+'"></i>';
-    }).join("")+'</div>'
-    +'<div class="dim" style="display:flex;justify-content:space-between"><span>'+md(ds[0].d)
-    +'</span><span>深色＝公開日・斜線＝報表還沒到</span><span>'+md(ds[ds.length-1].d)+'</span></div>';
-}
-function pubVideos(c){                             // 已公開的片（累計觀看＋上架前預測）
-  var a=anaOf(c.slug)||{}, pred={};
-  (a.videos||[]).forEach(function(v){ if(v.video_id) pred[v.video_id]=(v.pred_num||{}).views_7d; });
-  return (((a.live||{}).videos)||[]).map(function(v){
-    return {title:v.title, date:v.published, views:v.views, short:!!v.short,
-            pred:pred[v.id], vid:v.id, color:a.color};
-  }).sort(function(x,y){ return String(y.date||"").localeCompare(String(x.date||"")); });
-}
-function vrow(r,c,max){
-  return '<button class="vrow" data-film="'+esc(c.slug+"|v:"+r.vid)+'">'
-    +'<span style="min-width:0;display:flex;flex-direction:column">'
-    +'<span class="ell" style="font-size:13px">'+esc(r.title||"—")+'</span>'
-    +'<span class="dim">'+esc(md(r.date||""))+' 公開</span></span>'
-    +'<span style="display:flex">'+bc(r.views==null?null:r.views/max*100,
-        (r.pred!=null&&r.views!=null&&r.views>=r.pred)?"g":"",
-        r.pred!=null?r.pred/max*100:null)+'</span>'
-    +'<span class="num">'+(r.views==null?"—":fmt(r.views))+'</span></button>';
-}
-function chGrow(c){
-  var a=anaOf(c.slug)||{}, v7=a.views_7d, p7=a.views_prev7;
-  var longs=pubVideos(c).filter(function(r){ return !r.short; }).slice(0,5);
-  var max=niceMax(Math.max.apply(null,[1].concat(longs.map(function(r){
-    return Math.max(r.views||0,r.pred||0); }))));
-  return '<div class="ph"><h2>成長</h2><span class="dim">近 '+((ana&&ana.days)||30)+' 天</span>'
-    +'<span class="gap"></span><span class="dim">近 7 天觀看 </span>'
-    +'<span class="num" style="font-weight:700;font-size:17px">'+(v7==null?"—":fmt(v7))+'</span> '
-    +delta(v7,p7)+'</div>'
-    +'<div class="pb">'+barsBox(c)
-    +'<div style="display:flex;align-items:baseline;gap:8px;margin-top:4px">'
-    +'<h3>最近 5 支長片</h3><span class="dim">累計觀看・刻線＝上架前預測・綠＝超過預測</span>'
-    +'<button class="g" data-chtab="all" style="margin-left:auto">所有片 ›</button></div>'
-    +'<div class="rows">'+(longs.map(function(r){ return vrow(r,c,max); }).join("")
-      ||'<div class="dim">還沒有公開的長片。</div>')+'</div></div>';
-}
-function chSide(c){
-  var k=c.kpi||{}, cap=((snap.resources||{}).cash||{}).cap;
-  /* ER-166：這個頻道的產線這週吃掉多少訂閱額度（只算站） */
-  var pw=(((snap.resources||{}).quota||{}).production||{}).week||{};
-  var mine=(pw.by_channel||{})[c.slug]||null;
-  return '<section class="panel" aria-label="本週花費"><div class="ph"><h2>本週花費</h2></div>'
-    +'<div class="pb"><div style="display:flex;align-items:baseline;gap:8px">'
-    +'<span class="big">'+(k.cash_week==null?'<span class="dim">量不到</span>':"US$"+fmt(k.cash_week))
-    +'</span><span class="dim">現金・每片上限 US$1</span></div>'
-    +'<div style="display:flex">'+bc(k.cash_week!=null&&cap?k.cash_week/cap*100:null,"g")+'</div>'
-    +'<div class="dim">產線訂閱額度本週 '
-    +(mine?"US$"+fmt(mine.total)+"・"+fmt(mine.calls)+" 次呼叫":"這週還沒用到")
-    +'，明細在「成本」</div></div></section>'
-    +asksPanel(c.slug,mobile()?1:2)+notesPanel(c.slug,2);
-}
-function chOver(c){
-  return paneWrap("c3",[
-    {label:"本週進度與產線", html:'<section class="panel grow">'+chStages(c)+'</section>'},
-    {label:"成長", html:'<section class="panel grow">'+chGrow(c)+'</section>'},
-    {label:"花費與等你", html:chSide(c)}
-  ]);
-}
-function poolBlocked(slug,p){
-  var v=view.poolOpt[slug+":"+p.tc];
-  return v===undefined?!!p.blocked:v;
-}
-function chPool(c){
-  var all=(c.pool||[]).slice().sort(function(x,y){
-    return (poolBlocked(c.slug,x)?1:0)-(poolBlocked(c.slug,y)?1:0); });
-  var show=slicePg("pool",all,per("pool"));
-  return '<div class="main"><section class="panel" aria-label="選題池">'
-    +'<div class="ph"><h2>選題池</h2><span class="dim">擋下＝這一張不許開工；'
-    +'空出名額時會從上面挑</span><span class="gap"></span>'
-    +pager("pool",all.length,per("pool"),"張")+'</div>'
-    +'<div class="pb"><div class="rows">'+(show.map(function(p){
-      var off=poolBlocked(c.slug,p);
-      return '<div class="row"><span class="pill '+(off?"b":"o")+'">'+(off?"已擋下":"可開工")+'</span>'
-        +'<span style="flex:1;min-width:0"><span class="ell" style="display:block">'
-        +esc(plain(p.title)||p.tc)+'</span>'
-        +(off&&p.reason?'<span class="dim">擋下理由：'+esc(plain(p.reason))+'</span>':'')+'</span>'
-        +'<button data-pool="'+esc(c.slug)+":"+esc(p.tc)+":"+(off?"un":"do")+'">'
-        +(off?"解除擋下":"擋下這張")+'</button></div>';
-    }).join("")||'<div class="dim">卡池是空的，選題站下一輪會補。</div>')+'</div></div></section></div>';
-}
-function chAll(c){
-  var fs=films(c).map(function(f){
-    var p=pubNote(f.b,f.state.zh);
-    return {k:c.slug+"|"+f.id, title:f.title, note:f.state.zh+(p?"・"+p:""),
-            views:null, date:""};
-  });
-  var ps=pubVideos(c).map(function(r){
-    return {k:c.slug+"|v:"+r.vid, title:r.title, note:(r.short?"Shorts":"長片")+"・"
-            +md(r.date||"")+" 公開", views:r.views, date:r.date};
-  });
-  var all=fs.concat(ps), show=slicePg("vid",all,per("vid"));
-  return '<div class="main"><section class="panel" aria-label="所有片">'
-    +'<div class="ph"><h2>所有片</h2><span class="dim">在線的排前面・點一支看細節</span>'
-    +'<span class="gap"></span>'+pager("vid",all.length,per("vid"),"支")+'</div>'
-    +'<div class="pb"><div class="rows">'+(show.map(function(r){
-      return '<button class="vrow" style="grid-template-columns:minmax(0,1fr) 150px 70px" '
-        +'data-film="'+esc(r.k)+'"><span class="ell">'+esc(r.title)+'</span>'
-        +'<span class="dim ell">'+esc(r.note)+'</span>'
-        +'<span class="num">'+(r.views==null?"—":fmt(r.views))+'</span></button>';
-    }).join("")||'<div class="dim">還沒有片。</div>')+'</div></div></section></div>';
-}
-function chCost(c){
-  var k=c.kpi||{};
-  var rows=films(c).map(function(f){
-    return {t:f.title, c:(f.b.cost||{}).cash_usd, q:(f.b.cost||{}).llm_usd_equiv,
-            g:(f.b.cost||{}).gpu_min};
-  }).concat(allVideos(c.slug).map(function(v){
-    return {t:v.title||v.tc, c:(v.cost||{}).cash, q:(v.cost||{}).llm_equiv,
-            g:(v.cost||{}).gpu_min};
-  }));
-  var show=slicePg("cost",rows,per("cost"));
-  return '<div class="main"><section class="panel" aria-label="成本明細">'
-    +'<div class="ph"><h2>成本明細</h2><span class="dim">現金＝真的付出去的錢；'
-    +'額度＝訂閱等值，不是現金</span><span class="gap"></span>'
-    +pager("cost",rows.length,per("cost"),"支")+'</div>'
-    +'<div class="pb"><div class="t3">'
-    +'<div><span class="dim">本週現金</span><b>'+(k.cash_week==null?"—":"US$"+fmt(k.cash_week))+'</b></div>'
-    +'<div><span class="dim">每片現金</span><b>'
-    +(k.per_video_cash_usd==null?"—":"US$"+fmt(k.per_video_cash_usd))+'</b></div>'
-    +'<div><span class="dim">每片訂閱等值</span><b>'
-    +(k.per_video_quota_usd_equiv==null?"—":"US$"+fmt(k.per_video_quota_usd_equiv))+'</b></div></div>'
-    +'<div style="flex:1;min-height:0"><table><tr><th>片</th><th>現金</th><th>額度等值</th>'
-    +'<th>顯卡分鐘</th></tr>'+show.map(function(r){
-      return '<tr><td style="white-space:normal">'+esc(String(r.t).slice(0,30))+'</td>'
-        +'<td>'+(r.c==null?"—":"US$"+fmt(r.c))+'</td>'
-        +'<td>'+(r.q==null?"—":"US$"+fmt(r.q))+'</td><td>'+fmt(r.g)+'</td></tr>';
-    }).join("")+'</table></div></div></section></div>';
-}
-function channelPage(){
-  var c=curCh(), cs=snap.channels||[];
-  if(!c) return '<div class="wrap"><section class="panel"><div class="pb">'
-    +'<div class="dim">還沒有頻道。</div></div></section></div>';
-  var a=anaOf(c.slug)||{}, l=a.live||{}, pill=chPill(c);
-  var tv=totalViews(c.slug);
-  return '<div class="wrap"><div class="chtop">'
-    +'<div class="crumb"><button data-tab="home">總覽</button><span aria-hidden="true">›</span>'
-    +'<span class="chip" style="background:'+esc(c.color)+'"></span></div>'
-    +'<h1 class="ell">'+esc(c.name)+'</h1>'
-    +'<span class="pill '+pill[0]+'">'+pill[1]+'</span>'
-    +'<span class="dim desk">每週 '+(c.weekly_target||"？")+' 支・訂閱 '
-    +(l.subs==null?"—":fmt(l.subs))+'・累計觀看 '+(tv==null?"—":fmt(tv))+'</span>'
-    +'<span class="gap"></span>'
-    +'<div class="segs" role="tablist" aria-label="頻道內分頁">'+CHTABS.map(function(t){
-      return '<button role="tab" data-chtab="'+t[0]+'" aria-selected="'
-        +(view.chTab===t[0])+'">'+t[1]+'</button>'; }).join("")+'</div>'
-    +'<div class="nn"><button data-chnav="-1" aria-label="上一個頻道">‹</button>'
-    +'<span class="num dim">'+(chIdx()+1)+' / '+cs.length+'</span>'
-    +'<button data-chnav="1" aria-label="下一個頻道">›</button></div></div>'
-    +(view.chTab==="pool"?chPool(c):(view.chTab==="all"?chAll(c)
-      :(view.chTab==="cost"?chCost(c):chOver(c))))+'</div>';
-}
+/* ---------- 事件 ---------- */
+document.addEventListener("click",function(e){
+  var el=e.target.closest("[data-act]");if(!el)return;
+  var a=el.getAttribute("data-act");
+  if(a==="press"){e.preventDefault();doPress(el.getAttribute("data-b"));}
+  else if(a==="logout"){saveTok(null);SNAP=null;render();}
+  else if(a==="x"){dropToast(+el.getAttribute("data-id"));}
+  else if(a==="zoom"){openZoom(el.getAttribute("src"));}
+  else if(a==="unzoom"){if(history.state&&history.state.z)history.back();else closeZoom();}
+});
+document.addEventListener("change",function(e){
+  var el=e.target;if(el.getAttribute&&el.getAttribute("data-act")==="choose"){
+    var r=route();UI.choice[r.a+"|"+r.b]=el.value;
+    var ls=document.querySelectorAll(".opt");for(var i=0;i<ls.length;i++)ls[i].classList.toggle("on",ls[i].contains(el));}
+});
+document.addEventListener("toggle",function(e){var d=e.target;if(d&&d.tagName==="DETAILS"&&d.getAttribute("data-k"))UI.open[d.getAttribute("data-k")]=d.open;},true);
+window.addEventListener("hashchange",function(){closeZoom();render();});
 
-/* ---------- 等你（全頁）與成本（全頁） ---------- */
-function inboxPage(){
-  return '<div class="wrap">'+paneWrap("main",[
-    {label:"等你決定", html:asksPanel("",0)},
-    {label:"提醒", html:notesPanel("",0), side:true}
-  ])+'</div>';
-}
-function costPage(){
-  var r=snap.resources||{}, c=(r.cost||{}), cash=(r.cash||{}), q=(r.quota||{}), gem=(r.gemini||{});
-  var k=snap.kpi||{};
-  var tile=function(t,v,n){
-    return '<div class="card" style="flex-direction:column;align-items:flex-start;gap:2px">'
-      +'<span class="lab">'+t+'</span><span class="big">'+v+'</span>'
-      +'<span class="dim">'+n+'</span></div>';
-  };
-  var byc=Object.keys(c.by_channel||{});
-  /* ER-166：訂閱剩餘＝真實值；產線用量＝只算站，按頻道／站拆開 */
-  var pw=(q.production||{}).week||{}, pnp=(q.production||{}).not_prod||{},
-      pv=(q.production||{}).per_video||{}, rem=qRemain(q);
-  var lightCls=q.light==="紅"?"bad":(q.light==="黃"?"warn":(q.light==="綠"?"ok":"dim"));
-  return '<div class="wrap"><div class="g4">'
-    +tile("訂閱剩餘",(rem==null?'<span class="dim">未知</span>':rem+"%"),
-          esc(qAge(q))+(q.reset_text?"・重設 "+esc(q.reset_text):""))
-    +tile("產線本週用掉",(pw.total==null?'<span class="dim">量不到</span>':"US$"+fmt(pw.total)),
-          fmt(pw.calls||0)+" 次呼叫・只算站，不含討論與施工")
-    +tile("每片平均",(pv.usd==null?'<span class="dim">量不到</span>':"US$"+fmt(pv.usd)),
-          (q.per_video_pct!=null?"≈ 週額度 "+q.per_video_pct+"%":"換算率還算不出來"))
-    +tile("會不會停擺",'<span class="'+lightCls+'">'+esc(q.light||"未知")+'</span>',
-          q.light==="紅"?"產線站會撞頂排隊":(q.light==="黃"
-            ?"照目前燒法到重設約 "+(q.projected_pct==null?"？":q.projected_pct+"%")
-              +"・建議暫停開新單"
-            :(q.light==="綠"?"產線這週需要 "+(q.need_pct==null?"？":q.need_pct+"%")
-                +"・邊際 "+(q.margin_pct==null?"？":q.margin_pct+"%")
-              :esc(qAge(q)))))
-    +'</div>'+paneWrap("main",[{label:"產線用掉多少額度", html:
-     '<section class="panel grow"><div class="ph"><h2>產線用掉多少額度</h2>'
-    +'<span class="dim">本週・按頻道與站・真實成本</span></div>'
-    +'<div class="pb"><div class="rows">'+(Object.keys(pw.by_channel||{}).map(function(x){
-      var v=pw.by_channel[x], cc=ch(x);
-      return '<div class="row"><span class="chip" style="background:'
-        +esc(cc?cc.color:"var(--series2)")+'"></span>'
-        +'<span style="flex:1">'+esc(cc?cc.name:x)+'</span>'
-        +'<span class="num">US$'+fmt(v.total)+'</span>'
-        +'<span class="dim">'+fmt(v.calls)+' 次</span></div>'
-        +Object.keys(v.by_station||{}).sort(function(a,b){
-            return v.by_station[b].usd-v.by_station[a].usd; }).map(function(s){
-          return '<div class="row" style="padding-left:22px"><span class="dim" style="flex:1">'
-            +esc(s)+'</span><span class="num dim">US$'+fmt(v.by_station[s].usd)+'</span>'
-            +'<span class="dim">'+fmt(v.by_station[s].calls)+' 次</span></div>';
-        }).join("");
-    }).join("")||'<div class="dim">這週產線還沒用到訂閱額度。</div>')+'</div>'
-    +'<div class="dim" style="margin-top:auto">不算進上面的：Engineer 派工與試跑 US$'
-    +fmt(pnp.total||0)+'・'+fmt(pnp.calls||0)+' 次｜'+esc(plain(q.how||q.why||""))+'</div>'
-    +'</div></section>'},
-    {label:"每個頻道花多少現金", html:
-     '<section class="panel grow"><div class="ph"><h2>每個頻道花多少現金</h2>'
-    +'<span class="dim">帳本累計・現金是真的付出去的錢</span></div>'
-    +'<div class="pb"><div class="rows">'+(byc.map(function(x){
-      var v=c.by_channel[x], cc=ch(x);
-      return '<div class="row"><span class="chip" style="background:'
-        +esc(cc?cc.color:"var(--series2)")+'"></span>'
-        +'<span style="flex:1">'+esc(cc?cc.name:x)+'</span>'
-        +'<span class="num">US$'+fmt(v.cash)+'</span>'
-        +'<span class="dim">顯卡 '+fmt(v.gpu_min)+' 分</span></div>';
-    }).join("")||'<div class="dim">還沒有分頻道的帳。</div>')+'</div>'
-    +'<div class="dim" style="margin-top:auto">本週現金 US$'+fmt(cash.week||0)
-    +(cash.cap?'／上限 US$'+fmt(cash.cap):'')+'・每片 US$'
-    +(k.per_video_cash_usd==null?"—":fmt(k.per_video_cash_usd))+'（上限 US$1）・非片（共用）US$'
-    +(c.non_video==null?"—":fmt(c.non_video))+'</div>'
-    +'</div></section>'},
-    {label:"看起來像 0，其實是不計", side:true, html:
-     '<section class="panel grow"><div class="ph"><h2>看起來像 0，其實是不計</h2></div>'
-    +'<div class="pb">'+((c.not_counted||[]).map(function(x){
-      return '<div class="note"><u style="background:var(--series2)"></u><div>'
-        +'<span style="font-size:13px">'+esc(plain(x))+'</span></div></div>';
-    }).join("")||'<div class="dim">沒有不計現金的項目。</div>')
-    +'<div class="dim" style="margin-top:auto">出圖額度今日 '
-    +fmt((gem.images||{}).today||0)+' 張・撞頂 '+fmt(gem.quota_hits||0)+' 次</div>'
-    +'</div></section>'}])+'</div>';
-}
-
-/* ---------- 抽屜＝單支片（不換頁；從總覽、頻道頁、等你三處都能開） ---------- */
-function filmOf(key){
-  var p=String(key||"").split("|"), c=ch(p[0]);
-  if(!c||!p[1]) return null;
-  if(/^v:/.test(p[1])){
-    var id=p[1].slice(2), v=vidOf(id);
-    var pv=pubVideos(c).filter(function(x){ return x.vid===id; })[0];
-    return (v||pv)?{kind:"video", c:c, v:v, pub:pv}:null;
-  }
-  var b=(c.builds||[]).filter(function(x){ return x.build===p[1]; })[0];
-  if(!b) return null;
-  return {kind:"film", c:c, b:b,
-          card:inbox(c.slug).filter(function(r){ return r.kind==="decide"&&r.build===b.build; })[0]||null};
-}
-function dwHead(sub,title,meta){
-  return '<div class="dwh"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">'
-    +'<span class="dim">'+esc(sub)+'</span>'
-    +'<h2 style="line-height:1.35">'+esc(title)+'</h2>'
-    +'<span class="dim">'+esc(meta)+'</span></div>'
-    +'<button class="g" id="dwx" aria-label="關閉">'+ico("x")+'</button></div>';
-}
-function dwSteps(c,b){
-  var ds=depts(c), now=stageAt(b,ds), st=filmState(b);
-  var last={};
-  (b.stations||[]).forEach(function(s){
-    if(s.finished_at&&/^completed|^closed/.test(String(s.status||"")))
-      last[s.dept]=s.finished_at;
-  });
-  return '<section class="sec"><h3>走到哪</h3><div class="steps">'+ds.map(function(d,i){
-    return '<div><i class="'+(i<now?"on":(i===now?"now":""))+'"></i>'
-      +'<em>'+esc(DEPT_ZH[d]||d)+'</em><span>'
-      +esc(i===now?(st.zh||"在這"):(last[d]?md(String(last[d]).slice(0,10)):""))+'</span></div>';
-  }).join("")+'</div>'
-    +(st.why?'<div class="dim">'+esc(st.why)+'</div>':'')+'</section>';
-}
-function dwFilm(f){
-  var c=f.c, b=f.b, card=f.card, cost=b.cost||{};
-  var ths=(card&&card.thumbs)||[];
-  var pick=(ths.filter(function(t){ return t.pick; })[0]||{}).k||"";
-  var sel=view.thumb||pick;
-  var busy=card&&!!view.busy[card.card];
-  var w=card?dayDiff(card.date,at):null;
-  var head=dwHead(c.name+" › "+b.build, filmTitle(c,b),
-    [card?"長片":"", pubNote(b,""),
-     card&&card.date?md(card.date)+" 做好":"", (w!=null&&w>0?"等了 "+w+" 天":"")]
-      .filter(Boolean).join("・"));
-  var body='<div class="dwb">';
-  if(ths.length){
-    body+='<section class="sec"><div class="hd"><h3>選一張縮圖</h3>'
-      +'<span class="dim">系統建議 '+esc(pick)+'</span></div>'
-      +'<div class="g3">'+ths.map(function(t){
-        return '<button class="pick" data-thumb="'+esc(t.k)+'" aria-pressed="'+(sel===t.k)+'" '
-          +'aria-label="縮圖 '+esc(t.k)+'"><img src="'+esc(t.src)+'" alt="縮圖 '+esc(t.k)+'"></button>';
-      }).join("")+'</div>'
-      +'<div class="dim">'+(sel===pick?"用系統建議的這張放行；想換別張就點它"
-        :"選了 "+esc(sel)+"：換縮圖要退回重做發布包，所以下面那顆會變成「要改」")+'</div>'
-      +'<div class="dim">成片在電腦上看（放行前的成片不放上任何網址，也不先上傳）</div></section>';
-  }
-  body+=dwSteps(c,b);
-  body+='<section class="sec"><h3>一起上架的</h3><div class="lines">'
-    +'<div><u style="background:var(--ok)"></u><span style="flex:1">長片・英文字幕・說明欄</span>'
-    +'<span class="dim">'+(card?"好了":"做到一半")+'</span></div>'
-    +'<div><u style="background:var(--warn)"></u><span style="flex:1">Shorts</span>'
-    +'<span class="dim">'+esc(plain(b.shorts_zh||"—"))+'</span></div></div></section>';
-  body+='<section class="sec"><h3>這支片花了多少</h3><div class="g3">'
-    +'<div style="background:var(--soft);border-radius:10px;padding:9px 11px">'
-    +'<span class="dim">現金</span><b style="display:block;font-size:17px">'
-    +(cost.cash_usd==null?"—":"US$"+fmt(cost.cash_usd))+'</b>'
-    +'<span class="dim">上限 US$1</span></div>'
-    +'<div style="background:var(--soft);border-radius:10px;padding:9px 11px">'
-    +'<span class="dim">AI 額度</span><b style="display:block;font-size:17px">'
-    +(cost.llm_usd_equiv==null?"—":"US$"+fmt(cost.llm_usd_equiv))+'</b>'
-    +'<span class="dim">訂閱等值</span></div>'
-    +'<div style="background:var(--soft);border-radius:10px;padding:9px 11px">'
-    +'<span class="dim">顯卡</span><b style="display:block;font-size:17px">'
-    +fmt(cost.gpu_min)+' 分</b><span class="dim">本機，不花錢</span></div></div></section>';
-  var docs=((card&&card.docs)||[]).map(function(d,j){
-    return '<button class="g" data-doc="'+esc(card.card)+"|"+j+'">'+ico("doc")
-      +esc(plain(d.label))+'</button>'; }).join("");
-  if(docs) body+='<section class="sec"><h3>要看的文件</h3><div class="acts" '
-    +'style="display:flex;gap:8px;flex-wrap:wrap">'+docs+'</div></section>';
-  body+='</div>';
-  var foot;
-  if(!card) foot='<div class="dwf"><div class="dim">這支片還在做，現在不用你決定。</div>'
-    +'<button id="dwc" style="justify-content:center">關閉</button></div>';
-  else if(busy) foot='<div class="dwf"><div class="dim"><span class="spin"></span> '
-    +'已送出，等工廠收到…</div></div>';
-  else if(sel!==pick) foot='<div class="dwf"><div class="r">'
-    +'<button data-act="'+esc(card.card)+'|不動">再等等</button>'
-    +'<button class="p" data-send2="'+esc(card.card)+"|"+esc(sel)+'">要改：換成 '+esc(sel)+' 縮圖</button>'
-    +'</div><div class="dim" style="text-align:center">換縮圖＝退回重做發布包，不會公開</div></div>';
-  else foot='<div class="dwf"><div class="r">'
-    +'<button data-act="'+esc(card.card)+'|不動">再等等</button>'
-    +'<button data-act="'+esc(card.card)+'|改">要改…</button>'
-    +'<button class="p" data-act="'+esc(card.card)+'|准">'
-    +(view.confirm===card.card?"確定放行？再按一次":"放行公開"+(pick?"（用 "+esc(pick)+"）":""))
-    +'</button></div>'
-    +(view.noteOpen===card.card?'<textarea id="note" placeholder="要改什麼？一句話">'
-      +esc(view.notes[card.card]||"")+'</textarea>'
-      +(view.hint?'<div class="hint">'+esc(view.hint)+'</div>':"")
-      +'<div class="r"><button class="p" data-send="'+esc(card.card)+'">送出「改」</button></div>'
-      :'<div class="dim" style="text-align:center">按下去會再問一次確認；公開後不能收回</div>')
-    +'</div>';
-  return head+body+foot;
-}
-function dwVideo(f){
-  var c=f.c, v=f.v, pub=f.pub||{};
-  var title=(v&&v.title)||pub.title||"";
-  var head=dwHead(c.name+" › "+((v&&v.tc)||"已公開"), title,
-    [pub.short?"Shorts":"長片", (pub.date||(v&&v.published))?md(pub.date||v.published)+" 公開":""]
-      .filter(Boolean).join("・"));
-  var body='<div class="dwb">';
-  body+='<section class="sec"><h3>成績</h3><div class="g3">'
-    +'<div style="background:var(--soft);border-radius:10px;padding:9px 11px">'
-    +'<span class="dim">累計觀看</span><b style="display:block;font-size:17px">'
-    +(pub.views==null?"—":fmt(pub.views))+'</b>'
-    +(pub.pred!=null?'<span class="dim">預測 '+fmt(pub.pred)+'</span>':'')+'</div>'
-    +['48h','7d'].map(function(k){
-      var s=(v&&v.snaps&&v.snaps[k])||{};
-      return '<div style="background:var(--soft);border-radius:10px;padding:9px 11px">'
-        +'<span class="dim">'+(k==="48h"?"前 48 小時":"前 7 天")+'</span>'
-        +'<b style="display:block;font-size:17px">'+(s.views==null?"—":fmt(s.views))+'</b>'
-        +'<span class="dim">'+(s.avp==null?"看完比例量不到":"看完 "+fmt(s.avp)+"%")+'</span></div>';
-    }).join("")+'</div></section>';
-  if(v&&(v.retention||[]).length){
-    var pts=v.retention;
-    body+='<section class="sec"><h3>觀眾看到哪裡就走</h3>'
-      +svgLines(pts.map(function(p){ return Math.round(p.x*100)+"%"; }),
-                [{name:"留下的人",color:"var(--accent)",pts:pts.map(function(p){return p.ratio;})}],
-                [],180)
-      +'<div class="dim">'+(v.ret_drop?("掉最多的地方在片長 "+Math.round(v.ret_drop.x*100)+"%")
-        :"沒有明顯掉點")+'</div></section>';
-  }
-  if(v&&(v.traffic||[]).length){
-    var cols=["var(--accent)","var(--series2)","var(--ok)","var(--warn)","var(--bad)","var(--dim)"];
-    body+='<section class="sec"><h3>觀眾從哪裡來</h3>'
-      +'<div style="display:flex;height:10px;border-radius:999px;overflow:hidden">'
-      +v.traffic.map(function(x,i){
-        return '<i style="width:'+(x.pct||0)+'%;background:'+cols[i%cols.length]+'"></i>'; }).join("")
-      +'</div><div class="stat">'+v.traffic.map(function(x,i){
-        return '<span><span class="chip" style="background:'+cols[i%cols.length]+'"></span>'
-          +esc(x.zh)+' '+(x.pct==null?"—":x.pct+"%")+'</span>'; }).join("")+'</div></section>';
-  }
-  if(v&&(v.verdict||[]).length){
-    body+='<section class="sec"><h3>上架前的預測準不準</h3><table>'
-      +'<tr><th>項</th><th>預測</th><th>實際</th><th>判定</th></tr>'
-      +v.verdict.map(function(x){
-        var cls=x.hit==="命中"?"ok":(x.hit==="未命中"?"bad":"dim");
-        return '<tr><td>'+esc(x.metric)+'</td><td>'+esc(x.pred||"—")+'</td>'
-          +'<td>'+(x.actual==null?"—":fmt(x.actual))+'</td>'
-          +'<td class="'+cls+'">'+esc(x.hit)+'</td></tr>';
-      }).join("")+'</table></section>';
-  }
-  var k=(v&&v.cost)||{};
-  body+='<section class="sec"><h3>這支片花了多少</h3>'
-    +'<div class="dim">現金 '+(k.cash==null?"—":"US$"+fmt(k.cash))+'・訂閱等值 '
-    +(k.llm_equiv==null?"—":"US$"+fmt(k.llm_equiv))+'・顯卡 '+fmt(k.gpu_min)+' 分</div></section>';
-  body+='</div>';
-  return head+body+'<div class="dwf"><button id="dwc" style="justify-content:center">關閉</button></div>';
-}
-function drawer(){
-  if(!view.film) return "";
-  var f=filmOf(view.film);
-  if(!f) return "";
-  if(view.doc){
-    var d=view.doc;
-    return '<div class="dwbg" id="dwbg"></div><aside class="dw" role="dialog" aria-label="文件">'
-      +'<div class="dwh"><h2 style="flex:1">'+esc(plain(d.title))+'</h2>'
-      +'<button class="g" id="dwback" aria-label="返回">'+ico("left")+'</button></div>'
-      +'<div class="dwb"><pre>'+esc(d.text)+'</pre></div></aside>';
-  }
-  return '<div class="dwbg" id="dwbg"></div><aside class="dw" role="dialog" aria-modal="true" '
-    +'aria-label="單支片">'+(f.kind==="video"?dwVideo(f):dwFilm(f))+'</aside>';
-}
-
-/* ---------- 彈窗：只剩「設相關影片」與卡池確認 ---------- */
-function cardModal(){
-  var id=view.card, r=id?cardOf(id):null;
-  if(!r) return "";
-  var head='<div class="doc" id="mbg"><div role="dialog" aria-modal="true" aria-label="待辦">'
-    +'<div class="dim" style="display:flex">'+esc(askMeta(r))
-    +'<button class="g" id="mx" style="margin-left:auto" aria-label="關閉">'+ico("x")+'</button></div>'
-    +'<h2>'+esc(askTitle(r))+'</h2>'
-    +'<div style="font-size:13px">'+esc(plain(r.note||"").slice(0,200))+'</div>';
-  if(r.kind==="related")
-    return head+'<div style="display:flex;gap:8px;flex-wrap:wrap">'
-      +'<a class="btn" href="'+esc(r.url||"#")+'" target="_blank" rel="noopener">到後台設定 ↗</a>'
-      +'<button class="p" data-rel="'+esc(r.card)+'">已設好</button></div></div></div>';
-  /* 認不出是哪個頻道哪支片的決策卡：還是能裁，但要先指定頻道（這條路本來就有） */
-  return head
-    +(r.ambiguous?'<div class="dim">這張卡認不出是哪個頻道的，請先選一個。</div>'
-      +'<select id="amb">'+(snap.channels||[]).map(function(x){
-        return '<option value="'+esc(x.slug)+'">'+esc(x.name)+'</option>'; }).join("")+'</select>':'')
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
-    +'<button data-act="'+esc(r.card)+'|不動">再等等</button>'
-    +'<button data-act="'+esc(r.card)+'|改">要改…</button>'
-    +'<button class="p" data-act="'+esc(r.card)+'|准">'
-    +(view.confirm===r.card?"確定？再按一次":"准")+'</button></div>'
-    +(view.noteOpen===r.card?'<textarea id="note" placeholder="要改什麼？一句話">'
-      +esc(view.notes[r.card]||"")+'</textarea>'
-      +(view.hint?'<div class="hint">'+esc(view.hint)+'</div>':"")
-      +'<div><button class="p" data-send="'+esc(r.card)+'">送出「改」</button></div>':"")
-    +'</div></div>';
-}
-function poolModal(){
-  var a=view.poolAsk;
-  if(!a) return "";
-  return '<div class="doc" id="pbg"><div role="dialog" aria-modal="true" aria-label="選題池確認">'
-    +'<div class="dim">選題<button class="g" id="px" style="margin-left:auto" aria-label="關閉">'
-    +ico("x")+'</button></div>'
-    +'<h2>'+esc(plain(a.title)||a.tc)+'</h2>'
-    +'<div style="font-size:13px">'+(a.un?"解除之後這張會回到可開工，排到它就會開工。"
-                                        :"擋下之後這張不會開工，隨時可以解除。")+'</div>'
-    +'<div style="display:flex;gap:8px"><button class="p" id="pok">'
-    +(a.un?"確定解除擋下":"確定擋下這張")+'</button><button id="pno">取消</button></div></div></div>';
-}
-
-/* ---------- 組裝 ---------- */
-function body(){
-  if(view.err) return '<div class="wrap"><section class="panel"><div class="pb">'
-    +'<div class="err">'+esc(view.err)+'</div></div></section></div>';
-  if(view.tab==="ch") return channelPage();
-  if(view.tab==="inbox") return inboxPage();
-  if(view.tab==="cost") return costPage();
-  return overview();
-}
-/* 自動重讀（60 秒一輪）不得把老闆正在寫的字或開著的彈窗清掉：整頁重畫延後到彈窗關上
-   或輸入框空了為止（deferred），關上時再補一次重讀。 */
-function editing(){
-  if(view.card||view.poolAsk) return true;
-  var ae=document.activeElement;
-  if(ae&&(ae.tagName==="TEXTAREA"||ae.tagName==="INPUT")) return true;
-  return Object.keys(view.notes).some(function(k){ return (view.notes[k]||"").trim()!==""; });
-}
-function render(auto){
-  if(!snap) return false;
-  if(auto&&editing()){ deferred=true; return false; }
-  document.getElementById("app").innerHTML=
-    topBar()+body()+navBottom()+drawer()+cardModal()+poolModal()+toastsHtml();
-  wire();
-  lockScroll(!!view.card||!!view.poolAsk);
-  return true;
-}
-function openCard(id){
-  if(!cardOf(id)){ toast("這張卡已經不在了（"+id+"）","bad"); return; }
-  view.card=id; view.confirm=""; view.hint=""; view.noteOpen=""; render();
-}
-function closeCard(){                             // 關上就把草稿丟掉（草稿只活在開著的時候）
-  var id=view.card;
-  view.card=null; view.confirm=""; view.hint=""; view.noteOpen="";
-  if(id) delete view.notes[id];
-  lockScroll(false);
-  render();
-  if(deferred){ deferred=false; fetchSnap(); }
-}
-function closeFilm(){
-  view.film=null; view.thumb=""; view.confirm=""; view.noteOpen=""; view.doc=null;
-  render();
-  if(deferred){ deferred=false; fetchSnap(); }
-}
-function go(tab){
-  view.tab=tab; view.doc=null; view.poolAsk=null; view.film=null; view.pg={};
-  if(tab==="ch"&&!ch(view.ch)) view.ch=((snap.channels||[])[0]||{}).slug||"";
-  closeCard();
-}
-function openFilm(k){
-  if(!filmOf(k)){ toast("這一支片已經不在產線上了","bad"); return; }
-  view.film=k; view.thumb=""; view.confirm=""; view.noteOpen=""; view.doc=null; render();
-}
-function each(sel,fn){ Array.prototype.forEach.call(document.querySelectorAll(sel),fn); }
-function wireToasts(){
-  each("[data-tdrop]",function(b){ b.onclick=function(){ dropToast(+b.getAttribute("data-tdrop")); }; });
-  each("[data-retry]",function(b){ b.onclick=function(){
-    var t=view.toasts.filter(function(x){ return x.id===+b.getAttribute("data-retry"); })[0];
-    if(t&&t.retry){ dropToast(t.id); t.retry(); } }; });
-}
-function wire(){
-  wireToasts();
-  var th=document.getElementById("th");
-  if(th) th.onclick=function(){
-    var cur=document.documentElement.getAttribute("data-theme");
-    var nx=cur==="dark"?"light":(cur==="light"?"auto":"dark");
-    document.documentElement.setAttribute("data-theme",nx); localStorage.setItem(LS+"-theme",nx);
-  };
-  var out=document.getElementById("out");
-  if(out) out.onclick=function(){ saveTok(null); snap=null; clearInterval(timer); renderLogin("已登出"); };
-  each("[data-tab]",function(b){ b.onclick=function(){ go(b.getAttribute("data-tab")); }; });
-  each("[data-ch]",function(b){ b.onclick=function(){
-    view.ch=b.getAttribute("data-ch"); view.tab="ch"; view.chTab="over"; view.pane=0; render(); }; });
-  each("[data-chtab]",function(b){ b.onclick=function(){
-    view.chTab=b.getAttribute("data-chtab"); view.pg={}; render(); }; });
-  each("[data-chnav]",function(b){ b.onclick=function(){ chHop(+b.getAttribute("data-chnav")); }; });
-  each("[data-pane]",function(b){ b.onclick=function(){
-    view.pane=Math.max(0,Math.min(2,view.pane+(+b.getAttribute("data-pane")))); render(); }; });
-  each("[data-pg]",function(b){ b.onclick=function(){
-    var p=b.getAttribute("data-pg").split("|");
-    view.pg[p[0]]=Math.max(0,(view.pg[p[0]]||0)+(+p[1])); render(); }; });
-  each("[data-film]",function(b){ b.onclick=function(){ openFilm(b.getAttribute("data-film")); }; });
-  each("[data-open]",function(b){ b.onclick=function(){ openCard(b.getAttribute("data-open")); }; });
-  each("[data-thumb]",function(b){ b.onclick=function(){
-    view.thumb=b.getAttribute("data-thumb"); render(); }; });
-  var dwx=document.getElementById("dwx"), dwc=document.getElementById("dwc"),
-      dwbg=document.getElementById("dwbg"), dwb=document.getElementById("dwback");
-  if(dwx) dwx.onclick=closeFilm;
-  if(dwc) dwc.onclick=closeFilm;
-  if(dwbg) dwbg.onclick=closeFilm;
-  if(dwb) dwb.onclick=function(){ view.doc=null; render(); };
-  var mx=document.getElementById("mx"), mbg=document.getElementById("mbg");
-  if(mx) mx.onclick=function(){ closeCard(); };
-  if(mbg) mbg.onclick=function(e){ if(e.target===mbg) closeCard(); };
-  var ta=document.getElementById("note");
-  if(ta) ta.oninput=function(){ view.notes[view.noteOpen]=ta.value; view.hint=""; };
-  each("[data-doc]",function(b){ b.onclick=function(){
-    var p=b.getAttribute("data-doc").split("|"), r=cardOf(p[0]);
-    view.doc=((r&&r.docs)||[])[+p[1]]; render(); }; });
-  each("[data-act]",function(b){ b.onclick=function(){
-    var p=b.getAttribute("data-act").split("|"); act(p[0],p[1]); }; });
-  each("[data-send]",function(b){ b.onclick=function(){ sendNote(b.getAttribute("data-send")); }; });
-  each("[data-send2]",function(b){ b.onclick=function(){
-    var p=b.getAttribute("data-send2").split("|");
-    decide(p[0],"改","換成 "+p[1]+" 縮圖"); }; });
-  each("[data-rel]",function(b){ b.onclick=function(){ relDone(b.getAttribute("data-rel")); }; });
-  each("[data-pool]",function(b){ b.onclick=function(){
-    var p=b.getAttribute("data-pool").split(":"), c=ch(p[0]);
-    var card=((c&&c.pool)||[]).filter(function(x){ return x.tc===p[1]; })[0]||{};
-    view.poolAsk={slug:p[0],tc:p[1],un:p[2]==="un",title:card.title||""}; render(); }; });
-  var px=document.getElementById("px"), pbg=document.getElementById("pbg");
-  if(px) px.onclick=function(){ view.poolAsk=null; render(); };
-  if(pbg) pbg.onclick=function(e){ if(e.target===pbg){ view.poolAsk=null; render(); } };
-  var pno=document.getElementById("pno");
-  if(pno) pno.onclick=function(){ view.poolAsk=null; render(); };
-  var pok=document.getElementById("pok");
-  if(pok) pok.onclick=function(){ var a=view.poolAsk; if(a) poolToggle(a.slug,a.tc,a.un); };
-  wireSwipe();
-}
-function chHop(d){                                 // 換頻道（桌機按鈕、手機左右滑）
-  var cs=snap.channels||[];
-  if(!cs.length) return;
-  var i=(chIdx()+d+cs.length)%cs.length;
-  view.ch=cs[i].slug; view.pane=0; view.pg={}; view.film=null; render();
-}
-function wireSwipe(){
-  if(view.tab!=="ch"||view.film) return;
-  var app=document.getElementById("app"), x0=null, y0=null;
-  app.ontouchstart=function(e){
-    if(e.touches.length!==1) return;
-    x0=e.touches[0].clientX; y0=e.touches[0].clientY;
-  };
-  app.ontouchend=function(e){
-    if(x0===null) return;
-    var t=e.changedTouches[0], dx=t.clientX-x0, dy=t.clientY-y0;
-    x0=null;
-    if(Math.abs(dx)<60||Math.abs(dy)>50) return;
-    if(window.innerWidth<=820&&view.chTab==="over"){
-      var n=view.pane+(dx<0?1:-1);
-      if(n>=0&&n<=2){ view.pane=n; render(); return; }
-    }
-    chHop(dx<0?1:-1);
-  };
-}
-/* ---------- 動作：都以卡號為鍵，送出成功就關抽屜、卡變處理中、結果走提示 ---------- */
-function act(card,verdict){
-  var r=cardOf(card);
-  if(!r){ closeFilm(); toast("這張卡已被處理","bad"); return; }
-  if(verdict==="改"){ view.noteOpen=card; view.confirm=""; view.hint=""; render();
-    var ta=document.getElementById("note"); if(ta&&ta.focus) ta.focus(); return; }
-  if(verdict==="准"&&view.confirm!==card){      // 二段確認：按一次先變成問句，不用原生 confirm
-    view.confirm=card; render(); return;
-  }
-  decide(card,verdict,"");
-}
-function sendNote(card){
-  var t=(view.notes[card]||"").trim();
-  if(!t){ view.hint="「改」要寫一句意見，不然產線不知道改什麼。"; render(); return; }
-  decide(card,"改",t);
-}
-function decide(card,verdict,note){
-  var r=cardOf(card);
-  if(!r){ closeFilm(); toast("這張卡已被處理","bad"); return; }
-  var slug=r.channel;
-  if(r.ambiguous){
-    var s=document.getElementById("amb");
-    slug=s?s.value:"";
-    if(!slug){ view.hint="這張卡認不出頻道，請先選一個。"; render(); return; }
-  }
-  var action={kind:"decide",channel:slug,build:r.build||"",card:card,verdict:verdict,note:note};
-  submit(card,action,(r.build||"這張卡")+" 裁「"+verdict+"」",function(){ decide(card,verdict,note); });
-}
-function relDone(card){
-  var r=cardOf(card);
-  if(!r){ closeCard(); toast("這張卡已被處理","bad"); return; }
-  submit(card,{kind:"related-done",channel:r.channel,build:r.build,card:card,verdict:"",note:""},
-         (r.build||"這張卡")+" 已設好",function(){ relDone(card); });
-}
-/* 卡池擋下／解除（ER-142）：先彈窗確認 → 卡立刻換邊（樂觀）→ 結果走提示；
-   送不出去就把樂觀值收回來，列表回到原樣。 */
-function poolToggle(slug,tc,un){
-  view.poolOpt[slug+":"+tc]=!un; view.poolAsk=null; render();
-  var label=(un?"解除擋下 ":"擋下 ")+tc;
-  var tid=toast("已送出："+label,"wait");
-  sendAction({kind:un?"pool-unblock":"pool-block",channel:slug,build:tc,card:"",verdict:"",note:""})
-    .then(function(row){ waitAction(row.id,function(res){
-      dropToast(tid); toast("已完成："+label+"（"+res+"）"); }); })
-    .catch(function(e){
-      delete view.poolOpt[slug+":"+tc];           // 沒送出去就不要假裝擋下了
-      dropToast(tid); render();
-      toast("送不出去："+(e.message||e),"bad",function(){ poolToggle(slug,tc,un); });
-    });
-}
-
-/* ---------- 起步 ---------- */
+/* ---------- 起動 ---------- */
 function start(){
-  fetchSnap();
-  clearInterval(timer);
-  timer=setInterval(function(){ if(!document.hidden) fetchSnap(true); },60000);
-  document.addEventListener("visibilitychange",function(){ if(!document.hidden) fetchSnap(true); });
-  if(!start.keyed){                              // Esc 關抽屜與彈窗（只掛一次）
-    start.keyed=true;
-    document.addEventListener("keydown",function(e){
-      if(e.key!=="Escape") return;
-      if(view.poolAsk){ view.poolAsk=null; render(); return; }
-      if(view.card){ closeCard(); return; }
-      if(view.film) closeFilm();
-    });
-  }
+  var local=/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  var go=function(){
+    CFG=loadCfg();
+    try{TOK=JSON.parse(localStorage.getItem(LS+"tok")||localStorage.getItem("aicc-board-tok")||"null");}catch(e){TOK=null;}
+    MODE=CFG?"supabase":"needcfg";
+    render();if(MODE==="supabase"&&TOK)refresh(true);
+    setInterval(function(){if(!document.hidden&&MODE==="supabase"&&TOK)refresh(false);},20000);
+  };
+  if(local){
+    fetch("/api/snapshot",{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(s){
+      MODE="local";SNAP=s;render();
+      setInterval(function(){if(!document.hidden)refresh(false);},10000);
+    }).catch(go);
+  }else go();
 }
-(function(){
-  var t=localStorage.getItem(LS+"-theme");
-  if(t) document.documentElement.setAttribute("data-theme",t);
-  cfg=loadCfg();
-  if(!cfg){ renderSetup(); return; }
-  tok=loadTok();
-  if(!tok){ renderLogin(""); return; }
-  refresh().then(start).catch(function(){ renderLogin("請重新登入"); });
+start();
 })();
 </script>
 </body>
